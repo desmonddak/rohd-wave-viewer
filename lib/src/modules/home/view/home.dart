@@ -8,9 +8,9 @@
 // Author: Yao Jing Quek <yao.jing.quek@intel.com>
 
 import 'package:devtools_app_shared/ui.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/cupertino.dart' hide Split;
+import 'package:flutter/material.dart' hide Split;
+import 'package:flutter/widgets.dart' hide Split;
 import 'package:rohd_wave_viewer/src/const/locales.dart';
 import 'package:rohd_wave_viewer/src/modules/rohd_module/rohd_module.dart';
 import 'package:rohd_wave_viewer/src/modules/shared/widgets/panel_decoration.dart';
