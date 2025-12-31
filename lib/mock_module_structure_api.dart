@@ -164,9 +164,8 @@ class MockModuleStructureApi extends ModuleStructureApi {
         // Simulate streaming by yielding data in chunks
         const chunkSize = 2;
         for (var i = 0; i < allData.length; i += chunkSize) {
-          final end = (i + chunkSize < allData.length)
-              ? i + chunkSize
-              : allData.length;
+          final end =
+              (i + chunkSize < allData.length) ? i + chunkSize : allData.length;
           final chunk = allData.sublist(i, end);
 
           yield WaveformData(signalId: signalId, data: chunk);

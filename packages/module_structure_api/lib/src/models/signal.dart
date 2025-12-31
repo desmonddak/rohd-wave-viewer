@@ -86,8 +86,8 @@ class Signal {
       name: json['name'],
       type: json['type'],
       width: json['width'],
-      data: (json['data'] as List?)?.map((e) => Data.fromJson(e)).toList() ??
-          [],
+      data:
+          (json['data'] as List?)?.map((e) => Data.fromJson(e)).toList() ?? [],
     );
   }
 
@@ -110,7 +110,8 @@ class Signal {
   ///
   /// The new data points will be added to the end of the existing data list.
   /// If [sortByTime] is true, the data will be sorted by time after appending.
-  void appendWaveformData(WaveformData waveformData, {bool sortByTime = false}) {
+  void appendWaveformData(WaveformData waveformData,
+      {bool sortByTime = false}) {
     appendData(waveformData.data, sortByTime: sortByTime);
   }
 
