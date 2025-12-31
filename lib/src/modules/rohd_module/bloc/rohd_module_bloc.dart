@@ -38,6 +38,14 @@ class RohdModuleBloc extends Bloc<RohdModuleEvent, RohdModuleState> {
     try {
       final rohdModule = await _moduleStructureRepository.getModuleStructure();
 
+      // Load waveform data for all signals
+      final allSignalIds = _moduleStructureRepository.cachedSignalIds;
+      if (allSignalIds.isNotEmpty) {
+        await _moduleStructureRepository.loadAndAppendWaveformData(
+          signalIds: allSignalIds,
+        );
+      }
+
       emit(Rendered(rohdModule));
     } catch (e) {
       emit(Error(ModuleStructure.empty()));

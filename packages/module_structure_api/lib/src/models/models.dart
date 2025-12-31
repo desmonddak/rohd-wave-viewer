@@ -6,3 +6,5 @@ export 'metadata.dart';
 export 'module_structure.dart';
 export 'module.dart';
 export 'signal.dart';
+export 'signal_info.dart';
+export 'waveform_data.dart';
