@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/painters/waveform.dart';
 
 class WaveformHexaValue extends Waveform {
-  WaveformHexaValue(super.waveform, super.timescale);
+  WaveformHexaValue(super.waveform, super.finalTime);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -26,147 +26,44 @@ class WaveformHexaValue extends Waveform {
     final zPathTop = Path();
     final zPathBottom = Path();
 
-    final timeScaleLength = timescale;
+    final int widthPx = size.width.ceil();
+    String? prevSignal;
 
-    String currSignal = waveform.first.value;
+    for (int px = 0; px < widthPx; px++) {
+      final int timeAtPx = ((px / size.width) * finalTime).round();
+      final value =
+          getValueAtOrBeforeTime(waveform, timeAtPx) ?? prevSignal ?? '0';
 
-    for (int i = 0; i < timeScaleLength; i++) {
-      final startX = size.width / timeScaleLength * i;
-      final endX = size.width / timeScaleLength * (i + 1);
-
+      final double x = px.toDouble();
       const double posYTop = 0;
       final double posYBottom = size.height;
 
-      String? value = getValueAtTime(waveform, i);
-
-      topPath.moveTo(startX, posYTop);
-      bottomPath.moveTo(startX, posYBottom);
-      bool prevValChanged = false;
-
-      if (value != null && i != waveform[0].time) {
-        currSignal = value;
-        prevValChanged = true;
-
+      // For simplicity draw solid regions based on value
+      if (px == 0) {
         if (value.toLowerCase().contains('x')) {
-          xPathTop.moveTo(startX - space, posYTop);
-          xPathTop.lineTo(startX + space, posYBottom);
-          xPathTop.moveTo(startX + space, posYTop);
-          xPathTop.lineTo(endX - space, posYTop);
-          xPathTop.moveTo(startX, posYTop);
-
-          xPathBottom.moveTo(startX - space, posYBottom);
-          xPathBottom.lineTo(startX + space, posYTop);
-          xPathBottom.moveTo(startX + space, posYBottom);
-          xPathBottom.lineTo(endX - space, posYBottom);
-
-          const txtPaddingLeft = 5;
-          final offset = Offset(startX + txtPaddingLeft, size.height / 6);
-          writeText(
-            canvas,
-            offset,
-            text: currSignal,
-            customTextStyle: const TextStyle(
-              color: Colors.red,
-              fontSize: 10,
-            ),
-          );
+          xPathTop.moveTo(x - space, posYTop);
+          xPathBottom.moveTo(x - space, posYBottom);
         } else if (value.toLowerCase().contains('z')) {
-          zPathTop.moveTo(startX - space, posYTop);
-          zPathTop.lineTo(startX + space, posYBottom);
-          zPathTop.moveTo(startX + space, posYTop);
-          zPathTop.lineTo(endX - space, posYTop);
-          zPathTop.moveTo(startX, posYTop);
-
-          zPathBottom.moveTo(startX - space, posYBottom);
-          zPathBottom.lineTo(startX + space, posYTop);
-          zPathBottom.moveTo(startX + space, posYBottom);
-          zPathBottom.lineTo(endX - space, posYBottom);
-
-          const txtPaddingLeft = 5;
-          final offset = Offset(startX + txtPaddingLeft, size.height / 6);
-          writeText(
-            canvas,
-            offset,
-            text: currSignal,
-            customTextStyle: const TextStyle(
-              color: Colors.orange,
-              fontSize: 10,
-            ),
-          );
+          zPathTop.moveTo(x - space, posYTop);
+          zPathBottom.moveTo(x - space, posYBottom);
         } else {
-          topPath.moveTo(startX - space, posYTop);
-          topPath.lineTo(startX + space, posYBottom);
-          topPath.moveTo(startX + space, posYTop);
-          topPath.lineTo(endX - space, posYTop);
-          topPath.moveTo(startX, posYTop);
-
-          bottomPath.moveTo(startX - space, posYBottom);
-          bottomPath.lineTo(startX + space, posYTop);
-          bottomPath.moveTo(startX + space, posYBottom);
-          bottomPath.lineTo(endX - space, posYBottom);
-
-          const txtPaddingLeft = 5;
-          final offset = Offset(startX + txtPaddingLeft, size.height / 6);
-          writeText(
-            canvas,
-            offset,
-            text: currSignal,
-            customTextStyle: const TextStyle(
-              color: Colors.green,
-              fontSize: 10,
-            ),
-          );
+          topPath.moveTo(x - space, posYTop);
+          bottomPath.moveTo(x - space, posYBottom);
         }
+      }
+
+      if (value.toLowerCase().contains('x')) {
+        xPathTop.lineTo(x, posYTop);
+        xPathBottom.lineTo(x, posYBottom);
+      } else if (value.toLowerCase().contains('z')) {
+        zPathTop.lineTo(x, posYTop);
+        zPathBottom.lineTo(x, posYBottom);
       } else {
-        if (currSignal.toLowerCase().contains('x')) {
-          if (prevValChanged == false || i == 0) {
-            xPathTop.moveTo(startX - space, posYTop);
-            xPathBottom.moveTo(startX - space, posYBottom);
-          }
-          xPathTop.lineTo(endX - space, posYTop);
-          xPathBottom.lineTo(endX - space, posYBottom);
-        } else if (currSignal.toLowerCase().contains('z')) {
-          if (prevValChanged == false || i == 0) {
-            zPathTop.moveTo(startX - space, posYTop);
-            zPathBottom.moveTo(startX - space, posYBottom);
-          }
-          zPathTop.lineTo(endX - space, posYTop);
-          zPathBottom.lineTo(endX - space, posYBottom);
-        } else {
-          if (prevValChanged == false || i == 0) {
-            topPath.moveTo(startX - space, posYTop);
-            bottomPath.moveTo(startX - space, posYBottom);
-          }
-
-          topPath.lineTo(endX - space, posYTop);
-          bottomPath.lineTo(endX - space, posYBottom);
-        }
-
-        prevValChanged = false;
+        topPath.lineTo(x, posYTop);
+        bottomPath.lineTo(x, posYBottom);
       }
 
-      if (i == 0) {
-        const txtPaddingLeft = 5;
-        final offset = Offset(startX + txtPaddingLeft, size.height / 6);
-        Color txtColor = Colors.green;
-        if (currSignal.toLowerCase().contains('x')) {
-          txtColor = Colors.red;
-        } else if (currSignal.toLowerCase().contains('z')) {
-          txtColor = Colors.orange;
-        } else {
-          txtColor = Colors.green;
-        }
-
-        writeText(
-          canvas,
-          offset,
-          text: currSignal,
-          customTextStyle: TextStyle(
-            color: txtColor,
-            fontSize: 10,
-          ),
-        );
-      }
+      prevSignal = value;
     }
 
     topPath.addPath(bottomPath, const Offset(0, 0));

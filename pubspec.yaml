@@ -13,7 +13,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  devtools_app_shared: ^0.1.0
+  devtools_app_shared: ^0.4.0
   cupertino_icons: ^1.0.6
   flutter_fancy_tree_view: ^1.4.1
   bloc: ^8.0.0
@@ -24,7 +24,11 @@ dependencies:
     path: ./packages/module_structure_api
   module_structure_repository:
     path: ./packages/module_structure_repository
+  rohd_wellen:
+    path: ./packages/rohd_wellen
   mocktail: ^1.0.3
+  flutter_rust_bridge: 2.6.0
+  ffi: ^2.1.0
 
 dev_dependencies:
   flutter_test:

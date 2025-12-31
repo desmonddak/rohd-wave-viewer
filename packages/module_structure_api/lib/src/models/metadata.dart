@@ -9,7 +9,7 @@
 
 /// A class that represents the metadata of a module structure.
 ///
-/// It contains source, timescale, and date.
+/// It contains source, timescale, date, and time range information.
 class MetaData {
   /// The source of the metadata.
   String source;
@@ -20,16 +20,31 @@ class MetaData {
   /// The date of the metadata.
   String date;
 
+  /// The start time of the waveform in timescale units.
+  int startTime;
+
+  /// The end time of the waveform in timescale units.
+  int endTime;
+
   /// Creates a new instance of [MetaData].
   ///
   /// Requires [source], [timescale], and [date] as parameters.
-  MetaData({required this.source, required this.timescale, required this.date});
+  /// [startTime] and [endTime] default to 0 if not provided.
+  MetaData({
+    required this.source,
+    required this.timescale,
+    required this.date,
+    this.startTime = 0,
+    this.endTime = 0,
+  });
 
   /// Converts the [MetaData] instance into a JSON Map.
   Map<String, dynamic> toJson() => {
         'source': source,
         'timescale': timescale,
         'date': date,
+        'startTime': startTime,
+        'endTime': endTime,
       };
 
   /// Creates a new instance of [MetaData] from a JSON Map.
@@ -38,10 +53,13 @@ class MetaData {
       source: json['source'],
       timescale: json['timescale'],
       date: json['date'],
+      startTime: json['startTime'] ?? 0,
+      endTime: json['endTime'] ?? 0,
     );
   }
 
   factory MetaData.empty() {
-    return MetaData(source: '', timescale: '', date: '');
+    return MetaData(
+        source: '', timescale: '', date: '', startTime: 0, endTime: 0);
   }
 }

@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/painters/waveform.dart';
 
 class WaveformBinary extends Waveform {
-  WaveformBinary(super.waveform, super.timescale);
+  WaveformBinary(super.waveform, super.finalTime);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -19,51 +19,37 @@ class WaveformBinary extends Waveform {
     final xValPath = Path();
     final zValPath = Path();
 
-    String currentVal = waveform.first.value;
-    final containerWidth = size.width;
+    // Map pixel columns to time using finalTime
+    final int widthPx = size.width.ceil();
+    String? prevVal;
 
-    for (int i = 0; i < timescale; i++) {
-      String? value = getValueAtTime(waveform, i);
+    for (int px = 0; px < widthPx; px++) {
+      final int timeAtPx = ((px / size.width) * finalTime).round();
+      final value =
+          getValueAtOrBeforeTime(waveform, timeAtPx) ?? prevVal ?? '0';
 
-      final startX = containerWidth / timescale * i;
-      final endX = containerWidth / timescale * (i + 1);
-      double posY;
-
-      if (currentVal.toLowerCase().contains('x') ||
-          currentVal.toLowerCase().contains('z')) {
-        posY = size.height;
+      final double x = px.toDouble();
+      double y;
+      if (value.toLowerCase().contains('x') ||
+          value.toLowerCase().contains('z')) {
+        y = size.height;
       } else {
-        posY = size.height * (1 - int.parse(currentVal));
+        y = size.height * (1 - int.parse(value));
       }
 
-      double newPosY = posY;
-
-      binValPath.moveTo(startX, posY);
-      xValPath.moveTo(startX, posY);
-      zValPath.moveTo(startX, posY);
-      if (value != null) {
+      if (px == 0) {
+        binValPath.moveTo(x, y);
+      } else {
         if (value.toLowerCase().contains('x')) {
-          currentVal = value;
-          newPosY = size.height;
-          xValPath.lineTo(startX, newPosY);
+          xValPath.lineTo(x, y);
         } else if (value.toLowerCase().contains('z')) {
-          currentVal = value;
-          newPosY = size.height;
-          zValPath.lineTo(startX, newPosY);
+          zValPath.lineTo(x, y);
         } else {
-          currentVal = value;
-          newPosY = size.height * (1 - int.parse(currentVal));
-          binValPath.lineTo(startX, newPosY);
+          binValPath.lineTo(x, y);
         }
       }
 
-      if (currentVal.toLowerCase().contains('x')) {
-        xValPath.lineTo(endX, newPosY);
-      } else if (currentVal.toLowerCase().contains('z')) {
-        zValPath.lineTo(endX, newPosY);
-      } else {
-        binValPath.lineTo(endX, newPosY);
-      }
+      prevVal = value;
     }
 
     canvas.drawPath(binValPath, greenPaint);

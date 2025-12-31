@@ -25,9 +25,28 @@ abstract class Waveform extends CustomPainter {
     ..style = PaintingStyle.stroke;
 
   final List<Data> waveform;
-  final int timescale;
+  final int finalTime;
 
-  Waveform(this.waveform, this.timescale);
+  Waveform(this.waveform, this.finalTime);
+
+  /// Find the last value at or before [time] using binary search on ordered data.
+  String? getValueAtOrBeforeTime(List<Data> data, int time) {
+    if (data.isEmpty) return null;
+    int lo = 0;
+    int hi = data.length - 1;
+    int res = -1;
+    while (lo <= hi) {
+      final mid = (lo + hi) >> 1;
+      if (data[mid].time <= time) {
+        res = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    if (res == -1) return null;
+    return data[res].value;
+  }
 
   String? getValueAtTime(List<Data> data, int time) {
     for (var dataItem in data) {

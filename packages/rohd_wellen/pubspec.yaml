@@ -1,0 +1,23 @@
+name: rohd_wellen
+description: "Wellen waveform library bindings for ROHD - supports reading and writing VCD, FST, and GHW formats."
+homepage: https://intel.github.io/rohd-website/
+repository: https://github.com/intel/rohd-wellen
+version: 0.1.0
+issue_tracker: https://github.com/intel/rohd-wellen/issues
+
+publish_to: none
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter_rust_bridge: 2.6.0
+  ffi: ^2.1.0
+  meta: ^1.9.0
+  module_structure_api:
+    path: ../module_structure_api
+
+dev_dependencies:
+  test: ^1.24.9
+  ffigen: ^19.0.0
+  lints: ^3.0.0

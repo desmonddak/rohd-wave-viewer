@@ -39,9 +39,9 @@ class WaveformBackground extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(20),
               height: 200,
-              child: const TimescaleWidget(
+              child: TimescaleWidget(
                 zoomLevel: 10,
-                finalTime: 20,
+                finalTime: timescale,
               ),
             ),
           ),
@@ -65,14 +65,25 @@ class WaveformBackground extends StatelessWidget {
                         .read<WaveformModuleBloc>()
                         .add(WaveformModuleOnTap(positionClicked));
                   },
-                  child: ListView(
-                    children: [
-                      const PanelHeader(headerText: ''),
-                      ..._preprocessWaveform(state.monitorSignalsList),
-                      const SignalTabContainer(
-                        containerBody: Text(''),
-                      )
-                    ],
+                  child: ListView.builder(
+                    itemCount: state.monitorSignalsList.length + 2,
+                    itemBuilder: (context, index) {
+                      if (index == 0) {
+                        return const PanelHeader(headerText: '');
+                      }
+                      if (index == state.monitorSignalsList.length + 1) {
+                        return const SignalTabContainer(
+                          containerBody: Text(''),
+                        );
+                      }
+                      final sig = state.monitorSignalsList[index - 1];
+                      return drawWaveform(
+                          context,
+                          sig.data,
+                          sig.type == 'hex'
+                              ? SignalType.hexadecimal
+                              : SignalType.binary);
+                    },
                   ),
                 ),
             };
@@ -87,7 +98,7 @@ class WaveformBackground extends StatelessWidget {
     double canvasWidth = MediaQuery.of(context).size.width;
 
     // 2. Define the maximum scale value
-    double maxScaleValue = 20.0;
+    double maxScaleValue = timescale.toDouble();
 
     // 3. Calculate the ratio
     double ratio = maxScaleValue / canvasWidth;
@@ -115,26 +126,17 @@ class WaveformBackground extends StatelessWidget {
     return adjustedOffset;
   }
 
-  List<Widget> _preprocessWaveform(List<Signal> signals) {
-    return signals.map((signal) {
-      SignalType sigType;
-      if (signal.type == 'hex') {
-        sigType = SignalType.hexadecimal;
-      } else {
-        sigType = SignalType.binary;
-      }
-      return drawWaveform(signal.data, sigType);
-    }).toList();
-  }
-
-  Widget drawWaveform(List<Data> data, SignalType sigType) {
+  Widget drawWaveform(
+      BuildContext context, List<Data> data, SignalType sigType) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: SignalTabContainer(
         showBorder: true,
         borderColor: Colors.transparent,
         containerBody: CustomPaint(
-          size: const Size(30, 20),
+          // Expand to full width so the waveform maps across the available
+          // canvas using the configured timescale.
+          size: Size(MediaQuery.of(context).size.width, 40),
           painter: sigType == SignalType.hexadecimal
               ? WaveformHexaValue(data, timescale)
               : WaveformBinary(data, timescale),

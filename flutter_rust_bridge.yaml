@@ -1,0 +1,7 @@
+# Flutter Rust Bridge configuration
+rust_input: crate::api
+rust_root: rust/wellen_bridge/
+dart_output: lib/src/generated/
+
+# Codegen options
+full_dep: true

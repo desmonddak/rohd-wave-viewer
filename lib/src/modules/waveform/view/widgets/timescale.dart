@@ -28,7 +28,7 @@ class TimescaleWidget extends StatelessWidget {
       size: Size(width, 50), // this is the canvas to draw
       painter: TimescalePainter(
         timeScale: zoomLevel.toDouble(),
-        finalTime: 20,
+        finalTime: finalTime.toDouble(),
       ),
     );
   }
@@ -67,20 +67,17 @@ class TimescalePainter extends CustomPainter {
       paint,
     );
 
-    /// Draw the scale ticks and labels (Major Ticks)
-    /// This loop is used to draw the major ticks and labels on the timescale.
-    /// The loop variable i represents the x-coordinate of each major tick and
-    /// label. It starts at 0 and increments by size.width / [finalTime] on each
-    /// iteration, which means there will be [finalTime] major ticks evenly
-    /// spacedcacross the width of the widget.
-    ///
-    /// Basically, given a finalTime, calculate the interval in between the
-    /// screen.
-    for (double i = 0; i <= size.width; i += size.width / finalTime) {
+    // Use a reasonable number of major ticks to avoid extremely large loops
+    const int majorTicks = 10;
+    const int totalMinorTicks = 10;
+
+    for (int k = 0; k <= majorTicks; k++) {
+      final double x = (k / majorTicks) * size.width;
+      final int labelValue = ((k * finalTime) / majorTicks).round();
+
       final textPainter = TextPainter(
         text: TextSpan(
-          text:
-              '${((i / (size.width / finalTime)) * timeScale).round()}$timeUnit',
+          text: '$labelValue$timeUnit',
           style: const TextStyle(
             color: Colors.blue,
             fontSize: 12,
@@ -91,35 +88,21 @@ class TimescalePainter extends CustomPainter {
       textPainter.layout();
 
       final offset = Offset(
-        i - textPainter.width / 2,
+        x - textPainter.width / 2,
         initPosY - 20,
       );
-      // Paint the text on the canvas
       textPainter.paint(canvas, offset);
 
       // Draw the major line.
-      canvas.drawLine(
-        Offset(i, initPosY),
-        Offset(i, size.height),
-        paint,
-      );
+      canvas.drawLine(Offset(x, initPosY), Offset(x, size.height), paint);
 
-      /// Draw minor ticks
-      /// This nested loop is used to draw the minor ticks between each pair of
-      /// major ticks. The loop variable j represents the x-coordinate of each
-      /// minor tick. It starts at i + size.width / 50 and
-      /// increments by size.width / 50 on each iteration, which means
-      /// there will be 50 minor ticks between each pair of major ticks.
-      const totalMinorTicks = 10;
-      if (i + size.width / finalTime <= size.width) {
-        for (double j = i + size.width / (finalTime * totalMinorTicks);
-            j < i + size.width / finalTime;
-            j += size.width / (finalTime * totalMinorTicks)) {
+      // Draw minor ticks between this major tick and the next
+      if (k < majorTicks) {
+        final double nextX = ((k + 1) / majorTicks) * size.width;
+        for (int m = 1; m < totalMinorTicks; m++) {
+          final double mx = x + (m / totalMinorTicks) * (nextX - x);
           canvas.drawLine(
-            Offset(j, initPosY),
-            Offset(j, initPosY + 5),
-            paint,
-          );
+              Offset(mx, initPosY), Offset(mx, initPosY + 5), paint);
         }
       }
     }
@@ -127,7 +110,7 @@ class TimescalePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant TimescalePainter oldDelegate) {
-    // return oldDelegate.timeScale != timeScale;
-    return false;
+    return oldDelegate.timeScale != timeScale ||
+        oldDelegate.finalTime != finalTime;
   }
 }

@@ -8,9 +8,6 @@
 // Author: Yao Jing Quek <yao.jing.quek@intel.com>
 
 import 'package:module_structure_api/module_structure_api.dart';
-import 'package:module_structure_api/src/models/data.dart';
-import 'package:module_structure_api/src/models/signal_info.dart';
-import 'package:module_structure_api/src/models/waveform_data.dart';
 
 /// A class that represents a signal.
 ///
