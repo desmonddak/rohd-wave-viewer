@@ -121,7 +121,7 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
           final visibleEndTime = widget.timescale * visibleEndRatio;
           final visibleTimeRange = visibleEndTime - visibleStartTime;
           final visibleFraction = (visibleTimeRange / widget.timescale);
-            // Removed verbose debug logging for production
+          // Removed verbose debug logging for production
 
           return Column(
             children: [

@@ -252,7 +252,7 @@ class _WaveformPanelState extends State<WaveformPanel> {
               final actualWidth = constraints.maxWidth;
               // Preserve scroll fraction when the available width changes (window resize)
               final zoomedWidth = actualWidth * _zoomLevel;
-                // Do not emit verbose debug logs in production
+              // Do not emit verbose debug logs in production
               if (_lastActualWidth == null) {
                 _lastActualWidth = actualWidth;
               } else if (_lastActualWidth != actualWidth) {
@@ -285,7 +285,7 @@ class _WaveformPanelState extends State<WaveformPanel> {
               final maxStartTime = timescale.toDouble() - visibleTimeRange;
               final visibleStartTime = scrollFraction * maxStartTime;
 
-                // Suppress verbose waveform panel logging
+              // Suppress verbose waveform panel logging
 
               return Column(
                 children: [

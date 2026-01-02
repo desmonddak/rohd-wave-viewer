@@ -44,3 +44,4 @@ app.*.map.json
 
 # Let individual users select devtools options they like
 devtools_options.yaml
+rust/wellen_bridge/target
