@@ -26,8 +26,11 @@ abstract class Waveform extends CustomPainter {
 
   final List<Data> waveform;
   final int finalTime;
+  final int startTime;
+  final double leftOffset; // Left offset to align with timescale
 
-  Waveform(this.waveform, this.finalTime);
+  Waveform(this.waveform, this.finalTime, this.startTime,
+      {this.leftOffset = 8.0});
 
   /// Find the last value at or before [time] using binary search on ordered data.
   String? getValueAtOrBeforeTime(List<Data> data, int time) {

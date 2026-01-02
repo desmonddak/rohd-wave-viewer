@@ -64,12 +64,14 @@ cd /home/ganewto/src/rohd/rohd-wave-viewer
 # Build Flutter app
 flutter build linux --debug
 
-# Copy Rust library to bundle (required after each Rust rebuild)
-cp rust/wellen_bridge/target/release/libwellen_bridge.so build/linux/x64/debug/bundle/lib/
+# Set LD_LIBRARY_PATH to point to the Rust library (set once per shell session)
+setenv LD_LIBRARY_PATH /home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridge/target/release
 
-# Run the app
-./build/linux/x64/debug/bundle/rohd_wave_viewer [path/to/waveform.vcd]
+# Run the app with absolute path
+/home/ganewto/src/rohd/rohd-wave-viewer/build/linux/x64/debug/bundle/rohd_wave_viewer /home/ganewto/src/rohd/rohd-wave-viewer/surfer/examples/picorv32.vcd &
 ```
+
+**Note**: Using `LD_LIBRARY_PATH` eliminates the need to copy `libwellen_bridge.so` after each Rust rebuild, making the development iteration much faster. The environment variable only needs to be set once per shell session.
 
 ## Summary
 
@@ -77,7 +79,8 @@ cp rust/wellen_bridge/target/release/libwellen_bridge.so build/linux/x64/debug/b
 2. **Generate bindings**: Use Rust stable in PATH (after changing api.rs)
 3. **Build library**: Use Rust 1.92+ (stable)
 4. **Build Flutter app**: `flutter build linux --debug`
-5. **Copy library**: Copy .so to bundle/lib/
+5. **Set library path**: `setenv LD_LIBRARY_PATH /path/to/rust/target/release` (once per shell)
+6. **Run app**: Use absolute path to executable
 
 ## Troubleshooting
 
@@ -85,8 +88,8 @@ cp rust/wellen_bridge/target/release/libwellen_bridge.so build/linux/x64/debug/b
 - System cargo may be older (1.75); ensure ~/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin is in PATH
 - The codegen only needs to be installed once
 - Regenerate bindings after changing api.rs
-- Must copy libwellen_bridge.so to bundle after each Rust rebuild
-- In tcsh, use `setenv PATH` not `export PATH`
+- Use `LD_LIBRARY_PATH` to avoid copying libwellen_bridge.so after each Rust rebuild
+- In tcsh, use `setenv PATH` and `setenv LD_LIBRARY_PATH` not `export`
 
 ## Cleaning The Rust Build and Running Tests
 
@@ -116,8 +119,7 @@ cargo +1.92.0 clean
 rm -rf /home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridge/target
 ```
 
-3) Remove any copied native libraries in the Flutter bundle so the app won't
-load stale artifacts:
+3) (Optional) Remove any copied native libraries in the Flutter bundle if you previously used the copy method:
 
 ```tcsh
 rm -f /home/ganewto/src/rohd/rohd-wave-viewer/build/linux/x64/debug/bundle/lib/libwellen_bridge.so
@@ -131,22 +133,25 @@ flutter clean
 rm -rf build/
 ```
 
-5) Rebuild the Rust library and copy the new shared object into the Flutter bundle:
+5) Rebuild the Rust library:
 
 ```tcsh
 cd /home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridge
 setenv PATH ~/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:$PATH
 cargo build --release
-
-cp target/release/libwellen_bridge.so ../../build/linux/x64/debug/bundle/lib/
 ```
 
-6) Rebuild and run the Flutter app:
+6) Rebuild and run the Flutter app using LD_LIBRARY_PATH:
 
 ```tcsh
 cd /home/ganewto/src/rohd/rohd-wave-viewer
 flutter build linux --debug
-./build/linux/x64/debug/bundle/rohd_wave_viewer [path/to/file.vcd]
+
+# Set library path (once per shell session)
+setenv LD_LIBRARY_PATH /home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridge/target/release
+
+# Run with absolute path
+/home/ganewto/src/rohd/rohd-wave-viewer/build/linux/x64/debug/bundle/rohd_wave_viewer /home/ganewto/src/rohd/rohd-wave-viewer/surfer/examples/picorv32.vcd &
 ```
 
 Running unit/widget tests

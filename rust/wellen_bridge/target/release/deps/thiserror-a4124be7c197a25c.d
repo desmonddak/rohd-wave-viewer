@@ -1,0 +1,14 @@
+/home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridge/target/release/deps/thiserror-a4124be7c197a25c.d: /home/ganewto/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/lib.rs /home/ganewto/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/aserror.rs /home/ganewto/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/display.rs /home/ganewto/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/var.rs /home/ganewto/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/private.rs /home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridge/target/release/build/thiserror-46bc52699151122a/out/private.rs
+
+/home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridge/target/release/deps/libthiserror-a4124be7c197a25c.rlib: /home/ganewto/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/lib.rs /home/ganewto/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/aserror.rs /home/ganewto/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/display.rs /home/ganewto/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/var.rs /home/ganewto/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/private.rs /home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridge/target/release/build/thiserror-46bc52699151122a/out/private.rs
+
+/home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridge/target/release/deps/libthiserror-a4124be7c197a25c.rmeta: /home/ganewto/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/lib.rs /home/ganewto/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/aserror.rs /home/ganewto/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/display.rs /home/ganewto/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/var.rs /home/ganewto/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/private.rs /home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridge/target/release/build/thiserror-46bc52699151122a/out/private.rs
+
+/home/ganewto/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/lib.rs:
+/home/ganewto/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/aserror.rs:
+/home/ganewto/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/display.rs:
+/home/ganewto/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/var.rs:
+/home/ganewto/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/private.rs:
+/home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridge/target/release/build/thiserror-46bc52699151122a/out/private.rs:
+
+# env-dep:OUT_DIR=/home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridge/target/release/build/thiserror-46bc52699151122a/out

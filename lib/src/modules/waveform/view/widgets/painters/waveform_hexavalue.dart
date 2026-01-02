@@ -8,13 +8,23 @@
 // Author: Yao Jing Quek <yao.jing.quek@intel.com>
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/painters/waveform.dart';
 
 class WaveformHexaValue extends Waveform {
-  WaveformHexaValue(super.waveform, super.finalTime);
+  WaveformHexaValue(super.waveform, super.finalTime, super.startTime);
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Removed paint debug logging
+    if (size.width > 0) {
+      final startTimeAtPx = startTime + ((0 / size.width) * finalTime).round();
+      final midTimeAtPx =
+          startTime + (((size.width / 2) / size.width) * finalTime).round();
+      final endTimeAtPx =
+          startTime + (((size.width - 1) / size.width) * finalTime).round();
+      // Removed mapping debug logging
+    }
     const space = 3;
 
     final topPath = Path();
@@ -30,7 +40,7 @@ class WaveformHexaValue extends Waveform {
     String? prevSignal;
 
     for (int px = 0; px < widthPx; px++) {
-      final int timeAtPx = ((px / size.width) * finalTime).round();
+      final int timeAtPx = startTime + ((px / size.width) * finalTime).round();
       final value =
           getValueAtOrBeforeTime(waveform, timeAtPx) ?? prevSignal ?? '0';
 

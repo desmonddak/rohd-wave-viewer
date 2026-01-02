@@ -20,8 +20,21 @@ import 'package:rohd_wave_viewer/src/modules/signal/view/signal_panel.dart';
 import 'package:rohd_wave_viewer/src/modules/signal/view/signal_value_panel.dart';
 import 'package:rohd_wave_viewer/src/modules/waveform/view/waveform_panel.dart';
 
-class WaveFormViewerPage extends StatelessWidget {
+class WaveFormViewerPage extends StatefulWidget {
   const WaveFormViewerPage({super.key});
+
+  @override
+  State<WaveFormViewerPage> createState() => _WaveFormViewerPageState();
+}
+
+class _WaveFormViewerPageState extends State<WaveFormViewerPage> {
+  final ScrollController _sharedVerticalScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _sharedVerticalScrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,20 +49,24 @@ class WaveFormViewerPage extends StatelessWidget {
         Container(
           decoration: panelDecoration(),
           height: bodyHeight,
-          child: ListView(children: const [SelectedSignalsPanel()]),
+          child: SelectedSignalsPanel(
+            scrollController: _sharedVerticalScrollController,
+          ),
         ),
         // Add signal value panel here
         Container(
           decoration: panelDecoration(),
           height: bodyHeight,
-          child: ListView(
-            children: const [SignalValuePanel()],
+          child: SignalValuePanel(
+            scrollController: _sharedVerticalScrollController,
           ),
         ),
         Container(
           decoration: panelDecoration(),
           height: bodyHeight,
-          child: ListView(children: const [WaveformPanel()]),
+          child: WaveformPanel(
+            verticalScrollController: _sharedVerticalScrollController,
+          ),
         ),
       ],
     );

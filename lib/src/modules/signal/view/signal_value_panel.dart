@@ -16,23 +16,40 @@ import 'package:rohd_wave_viewer/src/modules/signal/bloc/signal_bloc.dart';
 import 'package:rohd_wave_viewer/src/modules/waveform/bloc/waveform_module_bloc.dart';
 
 class SignalValuePanel extends StatelessWidget {
-  const SignalValuePanel({super.key});
+  final ScrollController? scrollController;
+
+  const SignalValuePanel({super.key, this.scrollController});
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<WaveformModuleBloc, WaveformModuleState>(
-      builder: (context, state) {
-        return switch (state) {
-          InitialCursor() => const Column(
-              children: [
-                PanelHeader(headerText: signalsValuePanelTitle),
-                SignalTabContainer(containerBody: Text('')),
-              ],
+    return Column(
+      children: [
+        const PanelHeader(headerText: signalsValuePanelTitle),
+        Expanded(
+          child: Listener(
+            onPointerSignal: (event) {
+              // Block pointer signal events (mouse wheel)
+            },
+            child: BlocBuilder<WaveformModuleBloc, WaveformModuleState>(
+              builder: (context, state) {
+                return switch (state) {
+                  InitialCursor() => ListView.builder(
+                      controller: scrollController,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: 1,
+                      itemBuilder: (context, index) {
+                        return const SignalTabContainer(
+                            containerBody: Text(''));
+                      },
+                    ),
+                  UpdatedCursor() => updateSignalValue(context, state),
+                  Error() => const Text(bugReport),
+                };
+              },
             ),
-          UpdatedCursor() => updateSignalValue(context, state),
-          Error() => const Text(bugReport),
-        };
-      },
+          ),
+        ),
+      ],
     );
   }
 
@@ -48,15 +65,17 @@ class SignalValuePanel extends StatelessWidget {
       valueList.add(val);
     }
 
-    return Column(
-      children: [
-        const PanelHeader(headerText: signalsValuePanelTitle),
-        ...valueList.map(
-          (value) {
-            return SignalTabContainer(containerBody: Text(value));
-          },
-        ),
-      ],
+    return ListView.builder(
+      controller: scrollController,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: monitorSignalList.length + 1,
+      itemBuilder: (context, index) {
+        if (index == monitorSignalList.length) {
+          return const SignalTabContainer(containerBody: Text(''));
+        }
+        final value = valueList[index];
+        return SignalTabContainer(containerBody: Text(value));
+      },
     );
   }
 

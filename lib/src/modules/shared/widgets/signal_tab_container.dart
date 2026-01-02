@@ -25,11 +25,12 @@ class SignalTabContainer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 5),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
         decoration: showBorder
             ? BoxDecoration(border: Border.all(color: borderColor))
             : null,
         width: double.infinity,
+        height: 48, // Increased height to allow alternating labels
         child: containerBody,
       ),
     );
