@@ -8,23 +8,25 @@
 // Author: Yao Jing Quek <yao.jing.quek@intel.com>
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/painters/waveform.dart';
+import 'package:rohd_wave_viewer/src/const/layout.dart';
 
 class WaveformHexaValue extends Waveform {
-  WaveformHexaValue(super.waveform, super.finalTime, super.startTime);
+  WaveformHexaValue(super.waveform, super.finalTime, super.startTime,
+      {super.leftOffset = waveformLeftOffset,
+      super.viewportWidth = 0.0,
+      super.scrollOffset = 0.0});
 
   @override
   void paint(Canvas canvas, Size size) {
     // Removed paint debug logging
-    if (size.width > 0) {
-      final startTimeAtPx = startTime + ((0 / size.width) * finalTime).round();
-      final midTimeAtPx =
-          startTime + (((size.width / 2) / size.width) * finalTime).round();
-      final endTimeAtPx =
-          startTime + (((size.width - 1) / size.width) * finalTime).round();
-      // Removed mapping debug logging
-    }
+    // Use the instance leftOffset passed by the caller (may already be scaled)
+    final double left = leftOffset;
+    final double rightPadding = left;
+    final double drawingWidth =
+        (size.width - left - rightPadding).clamp(0.0, double.infinity);
+
+    // Removed some debug-only mapping diagnostics
     const space = 3;
 
     final topPath = Path();
@@ -36,15 +38,17 @@ class WaveformHexaValue extends Waveform {
     final zPathTop = Path();
     final zPathBottom = Path();
 
-    final int widthPx = size.width.ceil();
+    // We draw within the inner drawing region (excluding left/right padding)
+    final int widthPx = drawingWidth.ceil();
     String? prevSignal;
 
     for (int px = 0; px < widthPx; px++) {
-      final int timeAtPx = startTime + ((px / size.width) * finalTime).round();
+      final int timeAtPx =
+          startTime + ((px / drawingWidth) * finalTime).round();
       final value =
           getValueAtOrBeforeTime(waveform, timeAtPx) ?? prevSignal ?? '0';
-
-      final double x = px.toDouble();
+      // Map px into actual content x by adding the left offset and scrollOffset
+      final double x = scrollOffset + left + px.toDouble();
       const double posYTop = 0;
       final double posYBottom = size.height;
 

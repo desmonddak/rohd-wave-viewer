@@ -28,11 +28,17 @@ class WaveFormViewerPage extends StatefulWidget {
 }
 
 class _WaveFormViewerPageState extends State<WaveFormViewerPage> {
-  final ScrollController _sharedVerticalScrollController = ScrollController();
+  // Each panel needs its own scroll controller to avoid attaching multiple
+  // ScrollPositions to the same controller, which breaks interactive Scrollbars.
+  final ScrollController _selectedSignalsScrollController = ScrollController();
+  final ScrollController _signalValueScrollController = ScrollController();
+  final ScrollController _waveformVerticalScrollController = ScrollController();
 
   @override
   void dispose() {
-    _sharedVerticalScrollController.dispose();
+    _selectedSignalsScrollController.dispose();
+    _signalValueScrollController.dispose();
+    _waveformVerticalScrollController.dispose();
     super.dispose();
   }
 
@@ -50,7 +56,7 @@ class _WaveFormViewerPageState extends State<WaveFormViewerPage> {
           decoration: panelDecoration(),
           height: bodyHeight,
           child: SelectedSignalsPanel(
-            scrollController: _sharedVerticalScrollController,
+            scrollController: _selectedSignalsScrollController,
           ),
         ),
         // Add signal value panel here
@@ -58,14 +64,14 @@ class _WaveFormViewerPageState extends State<WaveFormViewerPage> {
           decoration: panelDecoration(),
           height: bodyHeight,
           child: SignalValuePanel(
-            scrollController: _sharedVerticalScrollController,
+            scrollController: _signalValueScrollController,
           ),
         ),
         Container(
           decoration: panelDecoration(),
           height: bodyHeight,
           child: WaveformPanel(
-            verticalScrollController: _sharedVerticalScrollController,
+            verticalScrollController: _waveformVerticalScrollController,
           ),
         ),
       ],

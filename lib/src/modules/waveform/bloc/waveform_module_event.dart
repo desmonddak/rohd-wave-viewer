@@ -19,10 +19,10 @@ final class WaveformModuleInit extends WaveformModuleEvent {
 }
 
 final class WaveformModuleOnTap extends WaveformModuleEvent {
-  final Offset pos;
+  final int timePs;
 
-  const WaveformModuleOnTap(this.pos);
+  const WaveformModuleOnTap(this.timePs);
 
   @override
-  List<Object> get props => [];
+  List<Object> get props => [timePs];
 }

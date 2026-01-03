@@ -8,6 +8,7 @@
 // Author: Yao Jing Quek <yao.jing.quek@intel.com>
 
 import 'package:flutter/material.dart';
+import 'package:rohd_wave_viewer/src/const/layout.dart';
 
 class SignalTabContainer extends StatelessWidget {
   final Widget containerBody;
@@ -30,7 +31,8 @@ class SignalTabContainer extends StatelessWidget {
             ? BoxDecoration(border: Border.all(color: borderColor))
             : null,
         width: double.infinity,
-        height: 48, // Increased height to allow alternating labels
+        height:
+            signalTabContainerHeight, // Increased height to allow alternating labels
         child: containerBody,
       ),
     );

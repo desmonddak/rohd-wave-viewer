@@ -7,9 +7,8 @@
 // 2024 April
 // Author: Yao Jing Quek <yao.jing.quek@intel.com>
 
-import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
+import 'package:rohd_wave_viewer/src/const/layout.dart';
 
 class TimescaleWidget extends StatelessWidget {
   final double zoomLevel;
@@ -25,7 +24,8 @@ class TimescaleWidget extends StatelessWidget {
     required this.finalTime,
     required this.viewportWidth,
     this.startTime = 0.0,
-    this.leftOffset = 8.0, // Match SignalTabContainer horizontal padding
+    this.leftOffset =
+        waveformLeftOffset, // Match SignalTabContainer horizontal padding
     this.lineColor = Colors.blue,
   });
 
@@ -66,7 +66,7 @@ class TimescalePainter extends CustomPainter {
     required this.timeScale,
     required this.finalTime,
     this.startTime = 0.0,
-    this.leftOffset = 8.0,
+    this.leftOffset = waveformLeftOffset,
   });
 
   // No temporary diagnostic logging.
@@ -88,13 +88,17 @@ class TimescalePainter extends CustomPainter {
     const double minorTickHeight = 9.0; // Medium minor ticks
     const double labelOffset = 20.0; // vertical offset for alternating labels
 
-    // Drawing area starts at leftOffset
-    final double drawWidth = size.width - leftOffset;
+    // Reserve a right padding equal to leftOffset for visual cleanliness
+    const double rightPadding = waveformLeftOffset;
+    // Drawing area starts at leftOffset and ends before right padding
+    final double drawWidth =
+        (size.width - leftOffset - rightPadding).clamp(0.0, double.infinity);
 
     /// Draw the horizontal scale line (from leftOffset to end)
+    // Draw the horizontal scale line from leftOffset to right boundary
     canvas.drawLine(
       Offset(leftOffset, initPosY),
-      Offset(size.width, initPosY),
+      Offset(leftOffset + drawWidth, initPosY),
       paint,
     );
 
@@ -112,7 +116,9 @@ class TimescalePainter extends CustomPainter {
 
       // Determine power of ten base (pow10) as largest power of 10 <= r
       int pow10 = 1;
-      while (pow10 * 10 <= r) pow10 *= 10;
+      while (pow10 * 10 <= r) {
+        pow10 *= 10;
+      }
 
       // Try multipliers 1,2,5,10 against pow10 to find the smallest >= r
       final int m1 = pow10 * 1;
@@ -137,15 +143,11 @@ class TimescalePainter extends CustomPainter {
     final int majorIntervalPs = chooseNiceIntervalPs(roughInterval);
     // Prefer a half-major minor subdivision (e.g., 100ns major -> 50ns minor)
     int minorIntervalPs = (majorIntervalPs ~/ 2);
-    if (minorIntervalPs <= 0)
+    if (minorIntervalPs <= 0) {
       minorIntervalPs = (majorIntervalPs ~/ 10).clamp(1, majorIntervalPs);
+    }
     // Expose as doubles for pixel mapping
     final double majorInterval = majorIntervalPs.toDouble();
-    final double minorInterval = minorIntervalPs.toDouble();
-
-    // No debug logging
-
-    // (debug logging moved later, after tick lists are computed)
 
     // Calculate how many major ticks we'll actually draw
     final int numMajorTicks = (finalTime / majorInterval).ceil() + 1;
@@ -153,13 +155,6 @@ class TimescalePainter extends CustomPainter {
     // Measure actual major label widths (more accurate than conservative estimate)
     const double minLabelSpacing =
         2.0; // Minimum gap between labels (reduced to avoid clipping)
-    final double majorTickPixelSpacing =
-        (majorInterval / finalTime) * drawWidth;
-    final double minorTickPixelSpacing =
-        (minorInterval / finalTime) * drawWidth;
-
-    // Calculate absolute time range (doubles still used for pixel mapping)
-    final double endTime = startTime + finalTime;
 
     // Compute first major/minor tick in integer picoseconds (round up to next interval)
     final int firstMajorTickPs =
@@ -172,8 +167,6 @@ class TimescalePainter extends CustomPainter {
     for (int t = firstMajorTickPs; t <= endPs; t += majorIntervalPs) {
       majorTimesPs.add(t);
     }
-    // (debug logging removed)
-
     // Extra diagnostics for small intervals (help reproduce 1ns/5ns anomaly)
     // (Additional verbose diagnostics removed)
     double maxMeasuredMajorWidth = 0.0;
@@ -191,18 +184,20 @@ class TimescalePainter extends CustomPainter {
         textDirection: TextDirection.ltr,
       );
       textPainter.layout();
-      if (textPainter.width > maxMeasuredMajorWidth)
+      if (textPainter.width > maxMeasuredMajorWidth) {
         maxMeasuredMajorWidth = textPainter.width;
+      }
     }
 
-    final double requiredMajorSpacing = maxMeasuredMajorWidth + minLabelSpacing;
-    // Always prefer showing major labels; minors will collapse first when space is tight.
-    final bool showMajorLabels = true;
+    // Always prefer showing major labels; minors will collapse first when
+    // space is tight.
+    const bool showMajorLabels = true;
 
-    // Measure minor label widths (conservative max) and decide if minors fit
+    // Measure minor label widths (conservative max) and decide if minors fit.
     double maxMeasuredMinorWidth = 0.0;
-    // We'll sample up to 20 minor labels across the range using integer picosecond ticks
-    final int minorSamples = 20;
+    // We'll sample up to 20 minor labels across the range using
+    // integer picosecond ticks.
+    const int minorSamples = 20;
     if (minorIntervalPs > 0 && numMajorTicks > 0) {
       int sampled = 0;
       for (int t = firstMinorTickPs;
@@ -220,14 +215,12 @@ class TimescalePainter extends CustomPainter {
           textDirection: TextDirection.ltr,
         );
         textPainter.layout();
-        if (textPainter.width > maxMeasuredMinorWidth)
+        if (textPainter.width > maxMeasuredMinorWidth) {
           maxMeasuredMinorWidth = textPainter.width;
+        }
         sampled++;
       }
     }
-
-    final double requiredMinorSpacing = maxMeasuredMinorWidth + minLabelSpacing;
-    final bool showMinorLabels = minorTickPixelSpacing > requiredMinorSpacing;
 
     // Precompute which major labels will actually be drawn (so minors can refer to them)
     final List<Map<String, dynamic>> drawnMajors = [];
@@ -238,7 +231,8 @@ class TimescalePainter extends CustomPainter {
         final double absoluteTime = t.toDouble();
         final double x =
             leftOffset + ((absoluteTime - startTime) / finalTime) * drawWidth;
-        if (x < leftOffset || x > size.width) continue;
+        // Skip ticks that fall outside the drawing area (respect right padding)
+        if (x < leftOffset || x > leftOffset + drawWidth) continue;
         final int labelValue = t;
         final String labelText = _formatTimeLabel(labelValue);
         final textPainter = TextPainter(
@@ -340,14 +334,11 @@ class TimescalePainter extends CustomPainter {
     }
     minorTimesPs.sort();
 
-    // (Targeted debug removed)
-
-    int minorLabelIndex = 0;
-    double lastMinorRight = -1e12;
+    const lastMinorRight = -1e12;
     for (final absoluteTime in minorTimesPs) {
       final double x =
           leftOffset + ((absoluteTime - startTime) / finalTime) * drawWidth;
-      if (x < leftOffset || x > size.width) continue;
+      if (x < leftOffset || x > leftOffset + drawWidth) continue;
 
       // Draw minor tick mark
       canvas.drawLine(
@@ -355,11 +346,6 @@ class TimescalePainter extends CustomPainter {
         Offset(x, initPosY + minorTickHeight),
         paint,
       );
-
-      if (!showMinorLabels) {
-        minorLabelIndex++;
-        continue;
-      }
 
       final labelText = _formatTimeLabel(absoluteTime);
       final textPainter = TextPainter(
@@ -375,19 +361,15 @@ class TimescalePainter extends CustomPainter {
       textPainter.layout();
 
       // Place all minor labels below the scale line
-      final yOffset = initPosY + 6;
+      const yOffset = initPosY + 6;
       final labelLeft = x - textPainter.width / 2;
-      final labelRight = x + textPainter.width / 2;
 
       // Skip if overlaps previous minor
       if (!(labelLeft > lastMinorRight + minLabelSpacing)) {
-        minorLabelIndex++;
         continue;
       }
 
       textPainter.paint(canvas, Offset(labelLeft, yOffset));
-      lastMinorRight = labelRight;
-      minorLabelIndex++;
     }
 
     // Draw major ticks LAST (on top of minor ticks) using precomputed drawnMajors

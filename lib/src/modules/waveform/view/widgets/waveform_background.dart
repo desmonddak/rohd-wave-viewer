@@ -7,11 +7,10 @@
 // 2024 April
 // Author: Yao Jing Quek <yao.jing.quek@intel.com>
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rohd_wave_viewer/src/const/const.dart';
-import 'package:rohd_wave_viewer/src/modules/shared/widgets/panel_header.dart';
 import 'package:rohd_wave_viewer/src/modules/shared/widgets/signal_tab_container.dart';
 import 'package:rohd_wave_viewer/src/modules/signal/bloc/signal_bloc.dart';
 import 'package:rohd_wave_viewer/src/modules/waveform/bloc/waveform_module_bloc.dart';
@@ -43,6 +42,10 @@ class WaveformBackground extends StatefulWidget {
 }
 
 class _WaveformBackgroundState extends State<WaveformBackground> {
+  double _trackedScrollOffset = 0.0;
+  bool _scrollRebuildPending = false;
+  int _lastSignalCount = 0;
+
   @override
   void initState() {
     super.initState();
@@ -78,8 +81,15 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
   }
 
   void _onScroll() {
-    setState(() {
-      // Trigger rebuild when scroll position changes
+    // Update tracked offset and schedule at most one rebuild per frame
+    if (widget.horizontalScrollController.hasClients) {
+      _trackedScrollOffset = widget.horizontalScrollController.offset;
+    }
+    if (_scrollRebuildPending) return;
+    _scrollRebuildPending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+      _scrollRebuildPending = false;
     });
   }
 
@@ -89,39 +99,38 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
       color: Colors.black,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // Use actual rendered width to avoid race conditions when resizing
-          final layoutWidth = constraints.maxWidth;
-          final zoomedWidth =
-              layoutWidth; // parent SizedBox already sets full zoomed width
-          // Log controller extents for debugging - use try/catch to avoid null issues
-          double? controllerMax;
-          double? controllerOffset;
-          try {
-            if (widget.horizontalScrollController.hasClients) {
-              controllerMax =
-                  widget.horizontalScrollController.position.maxScrollExtent;
-              controllerOffset = widget.horizontalScrollController.offset;
-            }
-          } catch (e) {
-            // Controller not yet attached
-          }
+          // Use actual rendered width (content width) to avoid race conditions when resizing
+          final contentWidth =
+              constraints.maxWidth; // full zoomed content width
+          final viewportWidth = widget.screenWidth; // visible viewport width
           // Removed verbose debug logging for production build
           final scrollOffset = widget.horizontalScrollController.hasClients
               ? widget.horizontalScrollController.offset
               : 0.0;
 
-          // Calculate what portion of the total time is visible
-          final visibleStartRatio =
-              (zoomedWidth > 0) ? (scrollOffset / zoomedWidth) : 0.0;
-          final visibleEndRatio = (zoomedWidth > 0)
-              ? ((scrollOffset + layoutWidth) / zoomedWidth)
-              : 1.0;
-
-          final visibleStartTime = widget.timescale * visibleStartRatio;
-          final visibleEndTime = widget.timescale * visibleEndRatio;
-          final visibleTimeRange = visibleEndTime - visibleStartTime;
-          final visibleFraction = (visibleTimeRange / widget.timescale);
+          // Use the same mapping as WaveformPanel:
+          // visibleTimeRange = totalTime / zoomLevel
+          // visibleStartTime computed from scroll fraction over maxScrollExtent
+          final visibleTimeRange =
+              widget.timescale.toDouble() / widget.zoomLevel;
+          final maxScrollExtent =
+              (contentWidth - viewportWidth).clamp(0.0, double.infinity);
+          final scrollFraction =
+              (maxScrollExtent > 0) ? (scrollOffset / maxScrollExtent) : 0.0;
+          final maxStartTime = widget.timescale.toDouble() - visibleTimeRange;
+          final visibleStartTime = scrollFraction * maxStartTime;
           // Removed verbose debug logging for production
+
+          // Compute drawing region accounting for symmetric left/right padding
+          // Use a constant unscaled left offset (screen pixels) so the margin
+          // does not change when zooming.
+          const double baseLeftOffset = waveformLeftOffset;
+          const double leftOffset = baseLeftOffset;
+          const double rightPadding = baseLeftOffset;
+          // Drawing width for the visible viewport (used by painters)
+          final double viewportDrawingWidth =
+              (viewportWidth - leftOffset - rightPadding)
+                  .clamp(0.0, double.infinity);
 
           return Column(
             children: [
@@ -129,26 +138,71 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
               Expanded(
                 child: Stack(
                   children: [
-                    Positioned.fill(
-                      child:
-                          BlocBuilder<WaveformModuleBloc, WaveformModuleState>(
-                        builder: (context, state) {
-                          return CursorWidget(state.pos);
-                        },
-                      ),
-                    ),
+                    // Waveforms and gesture handlers first (drawn first, behind)
                     BlocBuilder<SignalBloc, SignalState>(
                         builder: (content, state) {
                       // Keep build lighter: avoid verbose debug printing
+
+                      // When signal count changes, schedule a scroll controller
+                      // layout recalculation to update maxScrollExtent for the new content height.
+                      if (state is SignalLoaded &&
+                          state.monitorSignalsList.length != _lastSignalCount) {
+                        _lastSignalCount = state.monitorSignalsList.length;
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted &&
+                              widget.verticalScrollController?.hasClients ==
+                                  true) {
+                            // Post-frame callback ensures layout has settled before we
+                            // try to access scroll metrics. The scroll extent should now
+                            // reflect the new ListView height.
+                          }
+                        });
+                      }
+
                       return switch (state) {
                         SignalLoading() => const SizedBox.shrink(),
                         SignalLoaded() => GestureDetector(
                             onTapDown: (TapDownDetails tapDownDetails) {
-                              final positionClicked =
-                                  getPosition(content, tapDownDetails);
+                              // If Control key is held, treat drag as panning and
+                              // do not place/move the marker.
+                              final keys =
+                                  HardwareKeyboard.instance.logicalKeysPressed;
+                              final bool ctrlPressed = keys.contains(
+                                      LogicalKeyboardKey.controlLeft) ||
+                                  keys.contains(
+                                      LogicalKeyboardKey.controlRight);
+                              if (ctrlPressed) return;
+
+                              final localPos = tapDownDetails.localPosition;
+
+                              // Map viewport-local X into the visible drawing region
+                              // by subtracting the fixed left offset, then scale into
+                              // the visible time range. Use viewport-local coordinates
+                              // (localPos.dx) — do NOT add scrollOffset here; the
+                              // visibleStartTime already accounts for horizontal scroll.
+                              // The GestureDetector here receives positions in content
+                              // coordinates (the full zoomed canvas width). Convert
+                              // content X to viewport-local X by subtracting the
+                              // current tracked scroll offset.
+                              final double contentX = localPos.dx;
+                              // Compute relative position using content coords so
+                              // we don't depend on whether localPos is viewport
+                              // or content-local. The painters place drawing
+                              // at contentX = trackedScroll + leftOffset + ...
+                              final double contentDrawingLeft =
+                                  _trackedScrollOffset + leftOffset;
+                              final double rel =
+                                  ((contentX - contentDrawingLeft) /
+                                          viewportDrawingWidth)
+                                      .clamp(0.0, 1.0);
+                              final int timeAtTap =
+                                  (visibleStartTime + rel * visibleTimeRange)
+                                      .toInt();
+
+                              // Send only marker time to BLoC (screen position is derived in painter)
                               context
                                   .read<WaveformModuleBloc>()
-                                  .add(WaveformModuleOnTap(positionClicked));
+                                  .add(WaveformModuleOnTap(timeAtTap));
                             },
                             child: Listener(
                               // Block pointer signal events (mouse wheel) from scrolling
@@ -175,9 +229,19 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
                                     }
                                     final sig = state.monitorSignalsList[index];
                                     // Removed detailed waveform data logging
-                                    // Use layoutWidth (actual rendered width) so painter matches scroll metrics
-                                    final actualWidth = layoutWidth;
+                                    // Use the full content width (zoomed width) so each
+                                    // waveform row spans the entire scrollable area.
+                                    // Painters still draw only the visible range using
+                                    // the passed `viewportWidth`/`visibleStartTime`.
+                                    final actualWidth = contentWidth;
                                     // Removed layout debug logging
+                                    // Pass the visible time slice to the painter
+                                    // (visibleStartTime/visibleTimeRange). The
+                                    // row width is the full content width so the
+                                    // widget can be scrolled; painters compute
+                                    // pixel positions using the viewport mapping
+                                    // and the provided scrollOffset to place
+                                    // their visible drawing into the content.
                                     return drawWaveform(
                                         context,
                                         sig.data,
@@ -185,8 +249,12 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
                                             ? SignalType.hexadecimal
                                             : SignalType.binary,
                                         actualWidth,
-                                        visibleStartTime.round(),
-                                        visibleTimeRange.round());
+                                        visibleStartTime.toInt(),
+                                        visibleTimeRange.toInt(),
+                                        leftOffset,
+                                        visibleStartTime,
+                                        viewportWidth,
+                                        scrollOffset);
                                   },
                                 ),
                               ),
@@ -194,6 +262,58 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
                           ),
                       };
                     }),
+                    // Marker/Cursor last (drawn last, on top)
+                    // `Positioned` must be a direct child of the `Stack` so place it
+                    // here and wrap its child with `IgnorePointer` so taps pass
+                    // through to the GestureDetector below.
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: BlocBuilder<WaveformModuleBloc,
+                            WaveformModuleState>(
+                          builder: (context, state) {
+                            // Compute cursor X in content coordinates from state.timePs
+                            double cursorContentX = leftOffset;
+
+                            final int t = state.timePs;
+
+                            if (visibleTimeRange > 0 && t > 0) {
+                              // Map marker time to content X using the same formula as waveform painters:
+                              // contentX = scrollOffset + leftOffset + ((time - visibleStartTime) / visibleTimeRange) * viewportDrawingWidth
+                              // This positions the cursor in content coordinates, matching the waveform painters.
+                              cursorContentX = _trackedScrollOffset +
+                                  leftOffset +
+                                  ((t.toDouble() - visibleStartTime) /
+                                          visibleTimeRange) *
+                                      viewportDrawingWidth;
+                            }
+
+                            // cursorContentX is in content coordinates (matches waveform painters)
+                            // The visible area in content coords is: scrollOffset+leftOffset to scrollOffset+leftOffset+viewportDrawingWidth
+                            double cursorFinalX = cursorContentX;
+
+                            // Determine visible content bounds (content coordinates)
+                            final double visibleLeft =
+                                _trackedScrollOffset + leftOffset;
+                            final double visibleRight = _trackedScrollOffset +
+                                leftOffset +
+                                viewportDrawingWidth;
+
+                            // If cursor is off-screen (outside visible content), do not draw it.
+                            if (cursorFinalX < visibleLeft ||
+                                cursorFinalX > visibleRight) {
+                              return const SizedBox.shrink();
+                            }
+
+                            // Y position: marker Y is stored separately and fixed
+                            // For now use a fixed Y position in the center
+                            const double cursorViewportY = 100.0;
+                            final cursorOffset =
+                                Offset(cursorFinalX, cursorViewportY);
+                            return CursorWidget(cursorOffset);
+                          },
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -225,18 +345,22 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
     final RenderBox box = context.findRenderObject() as RenderBox;
     final Offset localOffset = box.globalToLocal(details.globalPosition);
 
-    final adjustedOffset = Offset(
-        localOffset.dx - waveformPadding, localOffset.dx - waveformPadding);
-
-    // 1.Get the width of the total canvas
-    // removed debug print
-
-    // 2. divide by timescale
-    return adjustedOffset;
+    // Return raw local offset (viewport coordinates) so callers can map
+    // to content/time consistently. Do not apply padding adjustments here.
+    return localOffset;
   }
 
-  Widget drawWaveform(BuildContext context, List<Data> data, SignalType sigType,
-      double width, int startTime, int visibleTimeRange) {
+  Widget drawWaveform(
+      BuildContext context,
+      List<Data> data,
+      SignalType sigType,
+      double width,
+      int startTime,
+      int visibleTimeRange,
+      double leftOffset,
+      double visibleStartTime,
+      double viewportWidth,
+      double scrollOffset) {
     final painterWidth = width;
     // Removed debug logging for drawWaveform
 
@@ -248,16 +372,34 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
           key: ValueKey(
               'waveform_row_${painterWidth}_${visibleTimeRange}_$startTime'),
           width: painterWidth,
-          height: 40,
+          height: signalRowHeight,
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: CustomPaint(
               size: Size.infinite,
               isComplex: true,
               willChange: true,
+              // Use the full timescale (widget.timescale) as the painter's
+              // finalTime. The canvas width already reflects zoom via
+              // the parent SizedBox, so passing visibleTimeRange here
+              // caused a squared zoom effect (zoom^2). Using the full
+              // timescale makes pixels-per-time scale linearly with zoom.
+              // Pass the scaled left offset to the painter so it uses
+              // the correct offset under zoom (prevents double-shift).
+              // Use absolute mapping: finalTime = full timescale,
+              // startTime = 0. Scrolling is handled by the
+              // Horizontal ScrollView, which clips the large canvas.
               painter: sigType == SignalType.hexadecimal
-                  ? WaveformHexaValue(data, visibleTimeRange, startTime)
-                  : WaveformBinary(data, visibleTimeRange, startTime),
+                  ? WaveformHexaValue(
+                      data, visibleTimeRange.toInt(), visibleStartTime.toInt(),
+                      leftOffset: leftOffset,
+                      viewportWidth: viewportWidth,
+                      scrollOffset: scrollOffset)
+                  : WaveformBinary(
+                      data, visibleTimeRange.toInt(), visibleStartTime.toInt(),
+                      leftOffset: leftOffset,
+                      viewportWidth: viewportWidth,
+                      scrollOffset: scrollOffset),
             ),
           ),
         );

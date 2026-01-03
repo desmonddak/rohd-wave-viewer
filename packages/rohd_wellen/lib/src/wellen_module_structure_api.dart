@@ -36,14 +36,55 @@ class WellenModuleStructureApi extends ModuleStructureApi {
   /// Supports VCD, FST, and GHW formats.
   Future<void> loadFile(String filePath) async {
     await init();
-    final meta = await rust.loadWaveform(filePath: filePath);
-    // Log metadata returned from Rust for debugging
-    print(
-        'Wellen loadFile metadata: source=${meta.source} timescale=${meta.timescale} start=${meta.startTime} end=${meta.endTime} format=${meta.format}');
+    // Ask the Rust library to load the waveform file first so internal
+    // WAVEFORM_STATE is populated. The generated API exposes `loadWaveform`.
+    await rust.loadWaveform(filePath: filePath);
+
+    // After loading, request the structure from Rust and cache it locally.
     _cachedStructure = await rust.getWaveformStructure();
-    print(
-        'Wellen loaded structure: modules=${_cachedStructure?.modules.length ?? 0} allSignalIds=${_cachedStructure?.allSignalIds.length ?? 0}');
+    // Debug logging removed
     _isLoaded = true;
+  }
+
+  double _computeTimescaleToPsFromMetadata(rust.WaveformStructure? structure) {
+    if (structure == null) return 1.0;
+    final tsStr = structure.metadata.timescale; // e.g. "1ps" or "1ns"
+    final int tsFactor = structure.metadata.timescaleFactor;
+    String unit = 'ps';
+    final match = RegExp(r"\d+(.*)").firstMatch(tsStr);
+    if (match != null) {
+      unit = match.group(1) ?? 'ps';
+    }
+    double unitToPs;
+    switch (unit) {
+      case 's':
+        unitToPs = 1e12;
+        break;
+      case 'ms':
+        unitToPs = 1e9;
+        break;
+      case 'us':
+        unitToPs = 1e6;
+        break;
+      case 'ns':
+        unitToPs = 1e3;
+        break;
+      case 'ps':
+        unitToPs = 1.0;
+        break;
+      case 'fs':
+        unitToPs = 1e-3;
+        break;
+      case 'as':
+        unitToPs = 1e-6;
+        break;
+      case 'zs':
+        unitToPs = 1e-9;
+        break;
+      default:
+        unitToPs = 1.0;
+    }
+    return tsFactor * unitToPs;
   }
 
   /// Loads a waveform from bytes.
@@ -68,17 +109,10 @@ class WellenModuleStructureApi extends ModuleStructureApi {
       throw StateError('No waveform loaded. Call loadFile() first.');
     }
 
-    // Get all signal data
-    final allSignalIds = _cachedStructure!.allSignalIds;
-    print(
-        'Wellen getModuleStructure: requesting waveform data for ${allSignalIds.length} signals');
-    final waveformDataList = await rust.getWaveformData(
-      signalIds: allSignalIds,
-    );
-    print(
-        'Wellen getModuleStructure: retrieved ${waveformDataList.length} waveform entries');
-
-    return _convertToModuleStructure(_cachedStructure!, waveformDataList);
+    // Return module structure (without waveform data). Waveform data is
+    // intentionally loaded separately by the repository to avoid double-fetch
+    // and to allow streaming/append semantics.
+    return _convertToModuleStructure(_cachedStructure!, []);
   }
 
   @override
@@ -133,20 +167,33 @@ class WellenModuleStructureApi extends ModuleStructureApi {
   ) {
     // Build a map of signal ID to waveform data for quick lookup
     final dataMap = <String, List<Data>>{};
+    // Compute timescale multiplier to convert native units -> picoseconds
+    final double timescaleToPs =
+        _computeTimescaleToPsFromMetadata(wellenStructure);
     for (final signalData in waveformData) {
-      dataMap[signalData.signalId] = signalData.data
-          .map((dp) => Data(time: dp.time.toInt(), value: dp.value))
-          .toList();
+      final list = signalData.data.map((dp) {
+        final int tPs = (dp.time.toDouble() * timescaleToPs).round();
+        return Data(time: tPs, value: dp.value);
+      }).toList();
+      // Ensure data is sorted ascending by time for painters and lookups
+      list.sort((a, b) => a.time.compareTo(b.time));
+      dataMap[signalData.signalId] = list;
     }
 
-    // Convert metadata
+    // Convert metadata start/end to picoseconds as well
+    final int startTimePs =
+        (wellenStructure.metadata.startTime.toDouble() * timescaleToPs).round();
+    final int endTimePs =
+        (wellenStructure.metadata.endTime.toDouble() * timescaleToPs).round();
     final metadata = MetaData(
       source: wellenStructure.metadata.source,
       timescale: wellenStructure.metadata.timescale,
       date: wellenStructure.metadata.date ?? '',
-      startTime: wellenStructure.metadata.startTime.toInt(),
-      endTime: wellenStructure.metadata.endTime.toInt(),
+      startTime: startTimePs,
+      endTime: endTimePs,
     );
+
+    // Debug printing removed for production builds.
 
     // Convert module tree
     final modules = wellenStructure.modules
@@ -186,9 +233,15 @@ class WellenModuleStructureApi extends ModuleStructureApi {
 
   /// Converts Rust SignalWaveformData to viewer's WaveformData.
   WaveformData _convertWaveformData(rust.SignalWaveformData rustData) {
-    final data = rustData.data
-        .map((dp) => Data(time: dp.time.toInt(), value: dp.value))
-        .toList();
+    // Convert rust-native timestamps to picoseconds using metadata
+    final double timescaleToPs =
+        _computeTimescaleToPsFromMetadata(_cachedStructure);
+    final data = rustData.data.map((dp) {
+      final int tPs = (dp.time.toDouble() * timescaleToPs).round();
+      return Data(time: tPs, value: dp.value);
+    }).toList();
+    // Ensure data is sorted ascending by time
+    data.sort((a, b) => a.time.compareTo(b.time));
 
     return WaveformData(signalId: rustData.signalId, data: data);
   }

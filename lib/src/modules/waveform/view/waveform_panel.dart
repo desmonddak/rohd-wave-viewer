@@ -17,13 +17,13 @@
 // Author: Yao Jing Quek <yao.jing.quek@intel.com>
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rohd_wave_viewer/src/modules/rohd_module/bloc/rohd_module_bloc.dart';
 import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/timescale.dart';
 import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/waveform_background.dart';
+import 'package:rohd_wave_viewer/src/const/const.dart';
 
 class WaveformPanel extends StatefulWidget {
   final ScrollController? verticalScrollController;
@@ -40,11 +40,13 @@ class _WaveformPanelState extends State<WaveformPanel> {
   final ScrollController _horizontalScrollController = ScrollController();
   late final ScrollController _verticalScrollController;
   final FocusNode _focusNode = FocusNode();
+  double _trackedScrollOffset =
+      0.0; // Track scroll offset for zoom calculations
+  bool _scrollRebuildPending = false;
 
-  // Panning state
-  bool _isPanningHorizontal = false;
-  bool _isPanningVertical = false;
+  // Panning state (reserved for future use)
   Offset? _lastPanPosition;
+  bool _isMousePanning = false;
 
   @override
   void initState() {
@@ -55,12 +57,26 @@ class _WaveformPanelState extends State<WaveformPanel> {
     _horizontalScrollController.addListener(_onHorizontalScroll);
     // Keep focus listener silent in production
     _focusNode.addListener(() {});
+    // Ensure this panel receives keyboard focus when first shown so arrow
+    // keys and other shortcuts work immediately.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
+    });
   }
 
   void _onHorizontalScroll() {
-    // Trigger rebuild to update timescale with new scroll position
-    // No verbose logging during horizontal scroll
-    setState(() {});
+    // Update tracked scroll offset synchronously for zoom math and
+    // schedule a single rebuild per frame to avoid excessive rebuilds
+    if (_horizontalScrollController.hasClients) {
+      _trackedScrollOffset = _horizontalScrollController.offset;
+    }
+
+    if (_scrollRebuildPending) return;
+    _scrollRebuildPending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+      _scrollRebuildPending = false;
+    });
   }
 
   @override
@@ -82,7 +98,7 @@ class _WaveformPanelState extends State<WaveformPanel> {
     _zoomWithPreservedPosition(1.0 / 1.5);
   }
 
-  void _zoomWithPreservedPosition(double factor) {
+  void _zoomWithPreservedPosition(double factor, {double? focalViewportX}) {
     // Get current scroll fraction before zooming
     double scrollFraction = 0.0;
     if (_horizontalScrollController.hasClients) {
@@ -92,14 +108,75 @@ class _WaveformPanelState extends State<WaveformPanel> {
       }
     }
 
-    setState(() {
-      final oldZoom = _zoomLevel;
-      _zoomLevel = (_zoomLevel * factor).clamp(1.0, 100000.0);
+    // Compute old/current state for focal math before changing zoom
+    final double oldZoom = _zoomLevel;
+    // Use the tracked scroll offset (which is updated after each zoom)
+    // rather than reading from the controller, since jumpTo() is asynchronous
+    final double currentScrollOffset = _trackedScrollOffset;
 
-      // After setState, schedule scroll position restoration
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _restoreScrollFraction(scrollFraction);
-      });
+    // If focalViewportX is not provided, we will preserve scroll fraction.
+    // Otherwise, compute the content X under the focal point and adjust
+    // the scroll offset after zoom so the same content pixel remains
+    // under the same viewport X.
+    final double? oldContentX = (focalViewportX != null)
+        ? (currentScrollOffset + focalViewportX)
+        : null;
+
+    // Determine the new zoom level (clamped)
+    final double intendedNewZoom = (oldZoom * factor);
+    final double newZoom = intendedNewZoom.clamp(1.0, 100000.0);
+
+    setState(() {
+      _zoomLevel = newZoom;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // After layout settles, compute new offsets
+      if (!_horizontalScrollController.hasClients) {
+        // If controller not ready yet, retry next frame
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _restoreScrollFraction(scrollFraction);
+        });
+        return;
+      }
+
+      final double newMaxExtent =
+          _horizontalScrollController.position.maxScrollExtent;
+
+      // Shared variable for the offset we will jump to after zoom
+      double finalNewOffset = 0.0;
+
+      if (oldContentX == null) {
+        // No focal point: preserve previous scroll fraction
+        finalNewOffset =
+            (scrollFraction * newMaxExtent).clamp(0.0, newMaxExtent);
+        try {
+          _trackedScrollOffset = finalNewOffset;
+          _horizontalScrollController.jumpTo(finalNewOffset);
+        } catch (_) {}
+        return;
+      }
+
+      // With focal point: do focal-point zoom to keep the cursor at the same screen X
+      // The marker's TIME stays constant (stored in BLoC), and its screen position
+      // is derived automatically from the new visible time range.
+      final double scale = (newZoom / oldZoom);
+      const double left = waveformLeftOffset;
+
+      // Compute drawing X relative to left offset and clamp to >= 0
+      final double oldDrawingX =
+          (oldContentX - left).clamp(0.0, double.infinity);
+      final double newDrawingX = oldDrawingX * scale;
+      final double newContentX = left + newDrawingX;
+
+      // Focal-point zoom: keep the same content pixel under the same viewport X
+      finalNewOffset =
+          (newContentX - focalViewportX!).clamp(0.0, newMaxExtent).toDouble();
+
+      try {
+        _trackedScrollOffset = finalNewOffset;
+        _horizontalScrollController.jumpTo(finalNewOffset);
+      } catch (_) {}
     });
   }
 
@@ -126,12 +203,6 @@ class _WaveformPanelState extends State<WaveformPanel> {
         _restoreScrollFraction(scrollFraction, retries: retries - 1);
       });
     }
-  }
-
-  void _resetZoom() {
-    setState(() {
-      _zoomLevel = 1.0;
-    });
   }
 
   void _panLeft() {
@@ -174,6 +245,30 @@ class _WaveformPanelState extends State<WaveformPanel> {
         _scrollUp();
       } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
         _scrollDown();
+      } else if ((HardwareKeyboard.instance.logicalKeysPressed
+                  .contains(LogicalKeyboardKey.shiftLeft) ||
+              HardwareKeyboard.instance.logicalKeysPressed
+                  .contains(LogicalKeyboardKey.shiftRight)) &&
+          event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        // Shift+Up = zoom in
+        _zoomIn();
+      } else if ((HardwareKeyboard.instance.logicalKeysPressed
+                  .contains(LogicalKeyboardKey.shiftLeft) ||
+              HardwareKeyboard.instance.logicalKeysPressed
+                  .contains(LogicalKeyboardKey.shiftRight)) &&
+          event.logicalKey == LogicalKeyboardKey.arrowDown) {
+        // Shift+Down = zoom out
+        _zoomOut();
+      } else if (event.logicalKey == LogicalKeyboardKey.keyF) {
+        // 'F' key = fit waveform to viewport (reset zoom and scroll to 0)
+        setState(() {
+          _zoomLevel = 1.0;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          try {
+            _horizontalScrollController.jumpTo(0.0);
+          } catch (_) {}
+        });
       }
     }
   }
@@ -182,17 +277,14 @@ class _WaveformPanelState extends State<WaveformPanel> {
     // scrollUp invoked
     try {
       if (_verticalScrollController.hasClients) {
-        final scrollStep = 40.0; // One signal row
-        // Handle multiple scroll positions (controller is shared across panels)
-        for (final position in _verticalScrollController.positions) {
-          final offset = position.pixels;
-          final maxExtent = position.maxScrollExtent;
-          final newOffset = (offset - scrollStep).clamp(0.0, maxExtent);
-          position.jumpTo(newOffset);
-        }
+        const scrollStep = signalRowHeight; // One signal row
+        final offset = _verticalScrollController.offset;
+        final maxExtent = _verticalScrollController.position.maxScrollExtent;
+        final newOffset = (offset - scrollStep).clamp(0.0, maxExtent);
+        _verticalScrollController.jumpTo(newOffset);
       }
     } catch (e) {
-      if (kDebugMode) print('>>> _scrollUp ERROR: $e');
+      // ignore errors silently in scrollUp
     }
   }
 
@@ -200,28 +292,38 @@ class _WaveformPanelState extends State<WaveformPanel> {
     // scrollDown invoked
     try {
       if (_verticalScrollController.hasClients) {
-        final scrollStep = 40.0; // One signal row
-        // Handle multiple scroll positions (controller is shared across panels)
-        for (final position in _verticalScrollController.positions) {
-          final offset = position.pixels;
-          final maxExtent = position.maxScrollExtent;
-          final newOffset = (offset + scrollStep).clamp(0.0, maxExtent);
-          position.jumpTo(newOffset);
-        }
-      } else {}
+        const scrollStep = signalRowHeight; // One signal row
+        final offset = _verticalScrollController.offset;
+        final maxExtent = _verticalScrollController.position.maxScrollExtent;
+        final newOffset = (offset + scrollStep).clamp(0.0, maxExtent);
+        _verticalScrollController.jumpTo(newOffset);
+      }
     } catch (e) {
-      if (kDebugMode) print('>>> _scrollDown ERROR: $e');
+      // ignore errors silently in scrollDown
     }
   }
 
-  void _handleScroll(PointerSignalEvent event) {
+  void _handleScroll(PointerSignalEvent event, BuildContext context) {
     if (event is PointerScrollEvent) {
-      // Mouse scroll = zoom only, prevent default scrolling behavior
+      // Only zoom when Control key is held
+      final bool ctrlPressed = HardwareKeyboard.instance.logicalKeysPressed
+              .contains(LogicalKeyboardKey.controlLeft) ||
+          HardwareKeyboard.instance.logicalKeysPressed
+              .contains(LogicalKeyboardKey.controlRight);
+      if (!ctrlPressed) return;
+
       final scrollDelta = event.scrollDelta.dy;
+      // Determine mouse position relative to viewport
+      final RenderBox box = context.findRenderObject() as RenderBox;
+      final local = box.globalToLocal(event.position);
+      final focalX = local.dx; // viewport-local X
+
       if (scrollDelta > 0) {
-        _zoomIn(); // Scroll down = zoom in
+        // Scroll down = zoom out
+        _zoomWithPreservedPosition(1.0 / 1.5, focalViewportX: focalX);
       } else if (scrollDelta < 0) {
-        _zoomOut(); // Scroll up = zoom out
+        // Scroll up = zoom in
+        _zoomWithPreservedPosition(1.5, focalViewportX: focalX);
       }
     }
   }
@@ -275,9 +377,11 @@ class _WaveformPanelState extends State<WaveformPanel> {
               // When zoomed, the visible range is always timescale / zoomLevel
               final visibleTimeRange = timescale.toDouble() / _zoomLevel;
 
-              // Calculate start time based on scroll position
+              // Calculate start time based on scroll position. Prefer the
+              // tracked scroll offset updated by the throttled listener to
+              // avoid tight coupling to controller reads during fast pans.
               final scrollOffset = _horizontalScrollController.hasClients
-                  ? _horizontalScrollController.offset
+                  ? _trackedScrollOffset
                   : 0.0;
               final maxScrollExtent = zoomedWidth - actualWidth;
               final scrollFraction =
@@ -308,9 +412,7 @@ class _WaveformPanelState extends State<WaveformPanel> {
                           // Capture scroll events for zoom only, but allow other events through
                           behavior: HitTestBehavior.translucent,
                           onPointerSignal: (event) {
-                            if (event is PointerScrollEvent) {
-                              _handleScroll(event);
-                            }
+                            _handleScroll(event, context);
                           },
                           child: ScrollConfiguration(
                             behavior: _buildCustomScrollBehavior(context),
@@ -323,56 +425,65 @@ class _WaveformPanelState extends State<WaveformPanel> {
                               onPanStart: (details) {
                                 _focusNode
                                     .requestFocus(); // Also request focus on pan
-                                setState(() {
-                                  _isPanningHorizontal = true;
-                                  _isPanningVertical = true;
-                                  _lastPanPosition = details.globalPosition;
-                                });
+                                // Only start mouse panning when Control key is held.
+                                final keys = HardwareKeyboard
+                                    .instance.logicalKeysPressed;
+                                final bool ctrlPressed = keys.contains(
+                                        LogicalKeyboardKey.controlLeft) ||
+                                    keys.contains(
+                                        LogicalKeyboardKey.controlRight);
+                                if (ctrlPressed) {
+                                  setState(() {
+                                    _isMousePanning = true;
+                                    _lastPanPosition = details.globalPosition;
+                                  });
+                                }
                               },
                               onPanUpdate: (details) {
-                                if (_lastPanPosition != null) {
-                                  final deltaX = _lastPanPosition!.dx -
-                                      details.globalPosition.dx;
-                                  final deltaY = _lastPanPosition!.dy -
-                                      details.globalPosition.dy;
+                                if (!_isMousePanning ||
+                                    _lastPanPosition == null) {
+                                  return; // Ignore pan updates when not in mouse-panning mode
+                                }
 
-                                  // Pan updates are not logged
+                                final deltaX = _lastPanPosition!.dx -
+                                    details.globalPosition.dx;
+                                final deltaY = _lastPanPosition!.dy -
+                                    details.globalPosition.dy;
 
-                                  // Handle horizontal panning
-                                  final newHorizontalOffset =
-                                      (_horizontalScrollController.offset +
-                                              deltaX)
+                                // Pan updates are not logged
+
+                                // Handle horizontal panning
+                                final newHorizontalOffset =
+                                    (_horizontalScrollController.offset +
+                                            deltaX)
+                                        .clamp(
+                                  0.0,
+                                  _horizontalScrollController
+                                      .position.maxScrollExtent,
+                                );
+                                _horizontalScrollController
+                                    .jumpTo(newHorizontalOffset);
+
+                                // Handle vertical scrolling with this panel's own controller
+                                if (_verticalScrollController.hasClients) {
+                                  final newVerticalOffset =
+                                      (_verticalScrollController.offset +
+                                              deltaY)
                                           .clamp(
                                     0.0,
-                                    _horizontalScrollController
+                                    _verticalScrollController
                                         .position.maxScrollExtent,
                                   );
-                                  _horizontalScrollController
-                                      .jumpTo(newHorizontalOffset);
-
-                                  // Handle vertical scrolling - iterate over all positions since controller is shared
-                                  if (_verticalScrollController.hasClients) {
-                                    for (final position
-                                        in _verticalScrollController
-                                            .positions) {
-                                      final newVerticalOffset =
-                                          (position.pixels + deltaY).clamp(
-                                        0.0,
-                                        position.maxScrollExtent,
-                                      );
-                                      // Vertical pan not logged
-                                      position.jumpTo(newVerticalOffset);
-                                    }
-                                  }
-
-                                  _lastPanPosition = details.globalPosition;
+                                  _verticalScrollController
+                                      .jumpTo(newVerticalOffset);
                                 }
+
+                                _lastPanPosition = details.globalPosition;
                               },
                               onPanEnd: (details) {
                                 setState(() {
-                                  _isPanningHorizontal = false;
-                                  _isPanningVertical = false;
                                   _lastPanPosition = null;
+                                  _isMousePanning = false;
                                 });
                               },
                               child: Theme(
@@ -383,13 +494,18 @@ class _WaveformPanelState extends State<WaveformPanel> {
                                   ),
                                 ),
                                 child: Scrollbar(
+                                  interactive: true,
                                   thumbVisibility: true,
                                   controller: _horizontalScrollController,
                                   child: SingleChildScrollView(
                                     controller: _horizontalScrollController,
                                     scrollDirection: Axis.horizontal,
+                                    // Use NeverScrollableScrollPhysics to disable the built-in pan/drag
+                                    // scrolling. We handle all panning via custom onPan handlers that
+                                    // require Control key, so we don't want SingleChildScrollView's
+                                    // default gesture handling to interfere.
                                     physics:
-                                        const NeverScrollableScrollPhysics(), // Prevent pointer signal scrolling
+                                        const NeverScrollableScrollPhysics(),
                                     child: SizedBox(
                                       width: zoomedWidth,
                                       height: screenHeight -
@@ -446,20 +562,4 @@ class _NoMouseWheelScrollBehavior extends ScrollBehavior {
         PointerDeviceKind.stylus,
         PointerDeviceKind.trackpad,
       };
-}
-
-// Custom physics that allows programmatic scrolling but blocks user input
-class _ControllerOnlyScrollPhysics extends ClampingScrollPhysics {
-  const _ControllerOnlyScrollPhysics({super.parent});
-
-  @override
-  _ControllerOnlyScrollPhysics applyTo(ScrollPhysics? ancestor) {
-    return _ControllerOnlyScrollPhysics(parent: buildParent(ancestor));
-  }
-
-  @override
-  bool shouldAcceptUserOffset(ScrollMetrics position) {
-    // Block all user-initiated scrolling (mouse wheel, drag on scrollbar, etc)
-    return false;
-  }
 }

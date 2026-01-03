@@ -113,19 +113,19 @@ rustup run 1.92.0 cargo clean
 cargo +1.92.0 clean
 ```
 
-2) Remove the `target/` directory (forceful):
+1) Remove the `target/` directory (forceful):
 
 ```tcsh
 rm -rf /home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridge/target
 ```
 
-3) (Optional) Remove any copied native libraries in the Flutter bundle if you previously used the copy method:
+1) (Optional) Remove any copied native libraries in the Flutter bundle if you previously used the copy method:
 
 ```tcsh
 rm -f /home/ganewto/src/rohd/rohd-wave-viewer/build/linux/x64/debug/bundle/lib/libwellen_bridge.so
 ```
 
-4) (Optional) Clean Flutter build artifacts if you want a full rebuild:
+1) (Optional) Clean Flutter build artifacts if you want a full rebuild:
 
 ```tcsh
 cd /home/ganewto/src/rohd/rohd-wave-viewer
@@ -133,7 +133,7 @@ flutter clean
 rm -rf build/
 ```
 
-5) Rebuild the Rust library:
+1) Rebuild the Rust library:
 
 ```tcsh
 cd /home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridge
@@ -141,7 +141,7 @@ setenv PATH ~/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:$PATH
 cargo build --release
 ```
 
-6) Rebuild and run the Flutter app using LD_LIBRARY_PATH:
+1) Rebuild and run the Flutter app using LD_LIBRARY_PATH:
 
 ```tcsh
 cd /home/ganewto/src/rohd/rohd-wave-viewer
@@ -154,7 +154,8 @@ setenv LD_LIBRARY_PATH /home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridg
 /home/ganewto/src/rohd/rohd-wave-viewer/build/linux/x64/debug/bundle/rohd_wave_viewer /home/ganewto/src/rohd/rohd-wave-viewer/surfer/examples/picorv32.vcd &
 ```
 
-Running unit/widget tests
+Running unit/widget tests:
+
 - To run the project's Dart tests (including the rohd_module page tests), use
   the regular `flutter test` command from the workspace root.
 

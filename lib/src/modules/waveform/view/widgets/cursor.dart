@@ -17,9 +17,10 @@ class CursorWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      size: const Size(100, 100),
-      painter: Cursor(position),
+    return SizedBox.expand(
+      child: CustomPaint(
+        painter: Cursor(position),
+      ),
     );
   }
 }

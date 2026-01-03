@@ -14,6 +14,8 @@ import 'package:rohd_wave_viewer/src/modules/shared/widgets/panel_header.dart';
 import 'package:rohd_wave_viewer/src/modules/shared/widgets/signal_tab_container.dart';
 import 'package:rohd_wave_viewer/src/modules/signal/bloc/signal_bloc.dart';
 import 'package:rohd_wave_viewer/src/modules/waveform/bloc/waveform_module_bloc.dart';
+import 'package:rohd_wave_viewer/src/modules/rohd_module/bloc/rohd_module_bloc.dart'
+    hide Error;
 
 class SignalValuePanel extends StatelessWidget {
   final ScrollController? scrollController;
@@ -60,7 +62,7 @@ class SignalValuePanel extends StatelessWidget {
     final valueList = [];
 
     for (final signal in monitorSignalList) {
-      final scaleTime = adjustPropotion(context, state.pos).dx.toInt();
+      final scaleTime = state.timePs;
       final val = signal.getValueByTime(scaleTime);
       valueList.add(val);
     }
@@ -83,8 +85,17 @@ class SignalValuePanel extends StatelessWidget {
     // 1. Get the width of the total canvas
     double canvasWidth = MediaQuery.of(context).size.width;
 
-    // 2. Define the maximum scale value
+    // 2. Define the maximum scale value from module metadata (endTime)
     double maxScaleValue = 20.0;
+    try {
+      final rohdModuleState = BlocProvider.of<RohdModuleBloc>(context).state;
+      final endTime = rohdModuleState.moduleStructure.metadata.endTime;
+      if (endTime > 0) {
+        maxScaleValue = endTime.toDouble();
+      }
+    } catch (e) {
+      // Keep default maxScaleValue if RohdModuleBloc isn't available
+    }
 
     // 3. Calculate the ratio
     double ratio = maxScaleValue / canvasWidth;

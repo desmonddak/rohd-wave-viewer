@@ -36,22 +36,44 @@ void main(List<String> args) async {
       exit(1);
     }
 
-    print('Loading waveform from: $filePath');
+    // Loading waveform from: $filePath
     final wellenApi = WellenModuleStructureApi();
 
     try {
       await wellenApi.loadFile(filePath);
       moduleStructureApi = wellenApi;
-      print('Waveform loaded successfully');
+      // Waveform loaded successfully
     } catch (e) {
       stderr.writeln('Error loading waveform: $e');
       exit(1);
     }
   } else {
-    // No arguments - use mock data
-    print('No waveform file specified, using mock data');
-    print('Usage: rohd_wave_viewer [path/to/waveform.vcd]');
-    moduleStructureApi = MockModuleStructureApi();
+    // No CLI args — allow environment variable fallback for desktop debug runs
+    final envPath = Platform.environment['ROHD_WAVE_VCD'];
+    if (envPath != null && envPath.isNotEmpty) {
+      final file = File(envPath);
+      if (file.existsSync()) {
+        // Loading waveform from environment variable ROHD_WAVE_VCD: $envPath
+        final wellenApi = WellenModuleStructureApi();
+        try {
+          await wellenApi.loadFile(envPath);
+          moduleStructureApi = wellenApi;
+          // Waveform loaded successfully (env)
+        } catch (e) {
+          stderr.writeln('Error loading waveform from env: $e');
+          exit(1);
+        }
+      } else {
+        // ROHD_WAVE_VCD set but file not found: $envPath
+        // No waveform file specified, using mock data
+        moduleStructureApi = MockModuleStructureApi();
+      }
+    } else {
+      // No arguments and no env var - use mock data
+      // No waveform file specified, using mock data
+      // Usage: rohd_wave_viewer [path/to/waveform.vcd]
+      moduleStructureApi = MockModuleStructureApi();
+    }
   }
 
   runApp(

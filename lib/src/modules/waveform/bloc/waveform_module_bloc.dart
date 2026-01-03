@@ -9,7 +9,6 @@
 
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:flutter/material.dart';
 import 'package:module_structure_repository/module_structure_repository.dart';
 
 part 'waveform_module_event.dart';
@@ -30,7 +29,7 @@ class WaveformModuleBloc
     Emitter<WaveformModuleState> emit,
   ) async {
     try {
-      emit(UpdatedCursor(newPos: event.pos));
+      emit(UpdatedCursor(event.timePs));
     } catch (e) {
       emit(const Error());
     }

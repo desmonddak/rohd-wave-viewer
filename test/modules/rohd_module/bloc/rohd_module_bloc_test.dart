@@ -16,7 +16,6 @@ import 'package:rohd_wave_viewer/src/modules/rohd_module/bloc/rohd_module_bloc.d
 
 void main() {
   group('Rohd module Bloc', () {
-    late RohdModuleBloc rohdModuleBloc;
     late ModuleStructureRepository moduleStructureRepository;
     late ModuleStructureApi moduleStructureApi;
     late ModuleStructure mockModuleStructure;
@@ -26,8 +25,9 @@ void main() {
       moduleStructureApi = MockModuleStructureApi();
       moduleStructureRepository =
           ModuleStructureRepository(moduleStructureApi: moduleStructureApi);
-      rohdModuleBloc =
-          RohdModuleBloc(moduleStructureRepository: moduleStructureRepository);
+      // Do not create RohdModuleBloc here; create it per-test in the `build`
+      // closure so constructor side-effects (auto-init) don't run before the
+      // test's `act` step.
       mockModuleStructure =
           await moduleStructureRepository.getModuleStructure();
       selectedModule = mockModuleStructure.modules.first;
@@ -35,8 +35,9 @@ void main() {
 
     blocTest(
       'emit [Loading] when onRohdModuleInit is called.',
-      build: () => rohdModuleBloc,
-      act: (bloc) => bloc.add(RohdModuleInit()),
+      build: () =>
+          RohdModuleBloc(moduleStructureRepository: moduleStructureRepository),
+      // Constructor already triggers RohdModuleInit; no explicit `act` here.
       expect: () => <RohdModuleState>[
         Loading(mockModuleStructure),
         Rendered(mockModuleStructure)
@@ -45,11 +46,16 @@ void main() {
 
     blocTest<RohdModuleBloc, RohdModuleState>(
       'emit [ModuleSelected] when click on a module.',
-      build: () => rohdModuleBloc,
-      act: (bloc) => bloc.add(
-        RohdModuleSelect(mockModuleStructure, selectedModule),
-      ),
+      build: () =>
+          RohdModuleBloc(moduleStructureRepository: moduleStructureRepository),
+      act: (bloc) async {
+        // Wait for the initial render to complete (constructor's init)
+        await bloc.stream.firstWhere((s) => s is Rendered);
+        bloc.add(RohdModuleSelect(mockModuleStructure, selectedModule));
+      },
       expect: () => <RohdModuleState>[
+        Loading(mockModuleStructure),
+        Rendered(mockModuleStructure),
         ModuleSelected(mockModuleStructure, selectedModule)
       ],
     );

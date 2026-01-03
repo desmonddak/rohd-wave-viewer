@@ -9,6 +9,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:module_structure_api/module_structure_api.dart';
+import 'package:rohd_wave_viewer/src/const/layout.dart';
 
 abstract class Waveform extends CustomPainter {
   final greenPaint = Paint()
@@ -28,9 +29,13 @@ abstract class Waveform extends CustomPainter {
   final int finalTime;
   final int startTime;
   final double leftOffset; // Left offset to align with timescale
+  final double viewportWidth; // visible viewport width in pixels
+  final double scrollOffset; // horizontal scroll offset in pixels
 
   Waveform(this.waveform, this.finalTime, this.startTime,
-      {this.leftOffset = 8.0});
+      {this.leftOffset = waveformLeftOffset,
+      this.viewportWidth = 0.0,
+      this.scrollOffset = 0.0});
 
   /// Find the last value at or before [time] using binary search on ordered data.
   String? getValueAtOrBeforeTime(List<Data> data, int time) {

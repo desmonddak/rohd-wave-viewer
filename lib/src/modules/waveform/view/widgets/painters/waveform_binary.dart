@@ -8,11 +8,15 @@
 // Author: Yao Jing Quek <yao.jing.quek@intel.com>
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/painters/waveform.dart';
+import 'package:rohd_wave_viewer/src/const/layout.dart';
+// module_structure_api types used via Waveform base; no direct imports needed here
 
 class WaveformBinary extends Waveform {
-  WaveformBinary(super.waveform, super.finalTime, super.startTime);
+  WaveformBinary(super.waveform, super.finalTime, super.startTime,
+      {super.leftOffset = waveformLeftOffset,
+      super.viewportWidth = 0.0,
+      super.scrollOffset = 0.0});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -22,12 +26,20 @@ class WaveformBinary extends Waveform {
 
     if (waveform.isEmpty || size.width <= 0 || finalTime <= 0) return;
 
-    // Match the 8-pixel left offset used by TimescalePainter for label positioning
-    const double leftOffset = 8.0;
+    // Use the instance leftOffset (caller may pass a scaled offset)
+    final double left = leftOffset;
 
-    // Calculate pixels per time unit for mapping time -> x position
-    // Account for the left offset in the available drawing width
-    final double drawingWidth = size.width - leftOffset;
+    // Reserve a right padding equal to the left offset (symmetric)
+    final double rightPadding = left;
+
+    // Calculate pixels per time unit for mapping time -> x position.
+    // Use the viewport width (visible area) to compute pxPerTime so the
+    // painter's visible slice aligns exactly with the timescale. Then add
+    // `scrollOffset` to translate positions into content coordinates.
+    final double effectiveViewport =
+        (viewportWidth > 0.0) ? viewportWidth : size.width;
+    final double drawingWidth =
+        (effectiveViewport - left - rightPadding).clamp(0.0, double.infinity);
     final double pxPerTime = drawingWidth / finalTime;
 
     // Draw waveform by iterating through actual data transitions
@@ -36,8 +48,6 @@ class WaveformBinary extends Waveform {
     final xValPath = Path();
     final zValPath = Path();
 
-    int transitionCount = 0;
-    String? prevValue;
     double? prevX;
     double? prevY;
 
@@ -58,13 +68,12 @@ class WaveformBinary extends Waveform {
       }
     }
 
-    // Start from x=leftOffset with the initial value (aligns with timescale)
-    double startX = leftOffset;
+    // Start from x=left with the initial value (aligns with timescale)
+    double startX = left;
     double startY = yForValue(currentValue);
     binValPath.moveTo(startX, startY);
     prevX = startX;
     prevY = startY;
-    prevValue = currentValue;
 
     // Iterate through all data points that fall within our visible range
     final int endTime = startTime + finalTime;
@@ -76,29 +85,26 @@ class WaveformBinary extends Waveform {
       if (data.time > endTime) break;
 
       // Calculate x position for this transition (add leftOffset to align with timescale)
-      final double x = leftOffset + (data.time - startTime) * pxPerTime;
+      final double x =
+          scrollOffset + leftOffset + (data.time - startTime) * pxPerTime;
       final double y = yForValue(data.value);
 
       // Draw horizontal line from previous position to this x (at previous y level)
       if (prevX != null && prevY != null) {
-        binValPath.lineTo(x, prevY!);
+        binValPath.lineTo(x, prevY);
       }
 
       // Draw vertical transition to new value
       binValPath.lineTo(x, y);
 
-      if (prevValue != null && prevValue != data.value) {
-        transitionCount++;
-      }
-
       prevX = x;
       prevY = y;
-      prevValue = data.value;
     }
 
-    // Draw final horizontal line to end of canvas
+    // Draw final horizontal line to the right edge of the drawing region
     if (prevY != null) {
-      binValPath.lineTo(size.width, prevY!);
+      final double rightEdgeX = scrollOffset + left + drawingWidth;
+      binValPath.lineTo(rightEdgeX, prevY);
     }
 
     canvas.drawPath(binValPath, greenPaint);

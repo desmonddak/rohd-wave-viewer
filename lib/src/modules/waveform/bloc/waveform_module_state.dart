@@ -10,35 +10,22 @@
 part of 'waveform_module_bloc.dart';
 
 sealed class WaveformModuleState extends Equatable {
-  final Offset pos;
+  final int timePs;
 
-  const WaveformModuleState(this.pos);
+  const WaveformModuleState(this.timePs);
 
   @override
-  List<Object> get props => [pos];
+  List<Object> get props => [timePs];
 }
 
 final class InitialCursor extends WaveformModuleState {
-  final initialPos = const Offset(0, 0);
-
-  const InitialCursor() : super(const Offset(0, 0));
-
-  @override
-  List<Object> get props => [initialPos];
+  const InitialCursor() : super(0);
 }
 
 final class UpdatedCursor extends WaveformModuleState {
-  final Offset newPos;
-
-  const UpdatedCursor({required this.newPos}) : super(newPos);
-
-  @override
-  List<Object> get props => [newPos];
+  const UpdatedCursor(super.timePs);
 }
 
 final class Error extends WaveformModuleState {
-  const Error() : super(const Offset(0, 0));
-
-  @override
-  List<Object> get props => [];
+  const Error() : super(0);
 }
