@@ -4,8 +4,8 @@
 // wellen_module_structure_api.dart
 // Implementation of ModuleStructureApi using Wellen library
 //
-// 2024 December 30
-// Author: Max Korbel <max.korbel@intel.com>
+// 2026 January 03
+// Author: YDesmond Kirkpatrick <desmond.a.kirkpatrick@intel.com>
 
 import 'package:module_structure_api/module_structure_api.dart';
 import 'package:rohd_wellen/src/rust/api.dart' as rust;
@@ -191,6 +191,9 @@ class WellenModuleStructureApi extends ModuleStructureApi {
       date: wellenStructure.metadata.date ?? '',
       startTime: startTimePs,
       endTime: endTimePs,
+      timescaleFactor: wellenStructure.metadata.timescaleFactor,
+      version: wellenStructure.metadata.version,
+      format: WaveFormat.fromString(wellenStructure.metadata.format),
     );
 
     // Debug printing removed for production builds.
@@ -215,6 +218,8 @@ class WellenModuleStructureApi extends ModuleStructureApi {
               name: signalInfo.name,
               type: signalInfo.signalType,
               width: signalInfo.bitWidth.toInt(),
+              fullPath: signalInfo.fullPath,
+              scopeId: signalInfo.scopeId.toInt(),
               data: dataMap[signalInfo.id] ?? [],
             ))
         .toList();
@@ -226,6 +231,8 @@ class WellenModuleStructureApi extends ModuleStructureApi {
 
     return Module(
       name: moduleNode.name,
+      fullPath: moduleNode.fullPath,
+      scopeType: moduleNode.scopeType,
       signals: signals,
       subModules: subModules,
     );

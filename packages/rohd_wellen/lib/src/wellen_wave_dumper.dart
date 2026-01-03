@@ -8,8 +8,7 @@
 
 import 'dart:async';
 
-import 'models/signal_info.dart';
-import 'models/wave_format.dart';
+import 'package:module_structure_api/module_structure_api.dart';
 import 'wellen_writer.dart';
 
 /// A callback type for registering signal value changes.
@@ -37,8 +36,8 @@ typedef SimulatorTimeGetter = int Function();
 ///   id: 'top.clk',
 ///   name: 'clk',
 ///   fullPath: 'top.clk',
-///   signalType: 'wire',
-///   bitWidth: 1,
+///   type: 'wire',
+///   width: 1,
 ///   scopeId: 0,
 /// ));
 ///
@@ -156,7 +155,7 @@ class WellenWaveDumper {
     // Write initial values (all zeros or X)
     _writeTimestamp(0);
     for (final signal in _signals.values) {
-      final initialValue = '0' * signal.bitWidth;
+      final initialValue = '0' * (signal.width ?? 1);
       _writer.writeValue(0, signal.id, initialValue);
     }
   }

@@ -20,11 +20,21 @@ class Signal {
   /// The name of the signal.
   String name;
 
+  /// The full hierarchical path (e.g., "top.counter.clk").
+  ///
+  /// This is optional and populated when loading from waveform files.
+  String? fullPath;
+
   /// The type of the signal.
   String type;
 
   /// The bit width of the signal, if applicable.
   int? width;
+
+  /// ID of the scope (module) containing this signal.
+  ///
+  /// This is optional and populated when loading from waveform files.
+  int? scopeId;
 
   /// The list of data in the signal.
   List<Data> data;
@@ -33,13 +43,15 @@ class Signal {
   ///
   /// Requires [name], [type], and [data] as parameters.
   /// [id] defaults to [name] if not provided.
-  /// [width] is optional.
+  /// [width], [fullPath], and [scopeId] are optional.
   Signal({
     String? id,
     required this.name,
     required this.type,
     required this.data,
     this.width,
+    this.fullPath,
+    this.scopeId,
   }) : id = id ?? name;
 
   /// Converts the [Signal] instance into a JSON Map.
@@ -51,6 +63,8 @@ class Signal {
         'name': name,
         'type': type,
         if (width != null) 'width': width,
+        if (fullPath != null) 'fullPath': fullPath,
+        if (scopeId != null) 'scopeId': scopeId,
         'data': data.map((e) => e.toJson()).toList(),
       };
 
@@ -60,6 +74,8 @@ class Signal {
         name: name,
         type: type,
         width: width,
+        fullPath: fullPath,
+        scopeId: scopeId,
       );
 
   /// Creates a [Signal] from a [SignalInfo] with empty data.
@@ -69,6 +85,8 @@ class Signal {
       name: info.name,
       type: info.type,
       width: info.width,
+      fullPath: info.fullPath,
+      scopeId: info.scopeId,
       data: [],
     );
   }
@@ -83,6 +101,8 @@ class Signal {
       name: json['name'],
       type: json['type'],
       width: json['width'],
+      fullPath: json['fullPath'],
+      scopeId: json['scopeId'],
       data:
           (json['data'] as List?)?.map((e) => Data.fromJson(e)).toList() ?? [],
     );

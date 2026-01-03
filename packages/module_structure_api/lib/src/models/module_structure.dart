@@ -50,6 +50,15 @@ class ModuleStructure extends Equatable {
     return ModuleStructure(metadata: MetaData.empty(), modules: []);
   }
 
+  /// Get all signal IDs across all modules recursively.
+  List<String> get allSignalIds {
+    final result = <String>[];
+    for (final module in modules) {
+      result.addAll(module.allSignalIds);
+    }
+    return result;
+  }
+
   @override
   List<Object?> get props => [ModuleStructure];
 }

@@ -9,9 +9,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'models/signal_data.dart';
-import 'models/signal_info.dart';
-import 'models/wave_format.dart';
+import 'package:module_structure_api/module_structure_api.dart';
 
 /// A writer for waveform files.
 ///
@@ -33,8 +31,8 @@ import 'models/wave_format.dart';
 ///   id: 'clk',
 ///   name: 'clk',
 ///   fullPath: 'top.clk',
-///   signalType: 'wire',
-///   bitWidth: 1,
+///   type: 'wire',
+///   width: 1,
 ///   scopeId: 0,
 /// ));
 ///
@@ -195,7 +193,7 @@ class WellenWriter {
       }
 
       // Write value change
-      final width = registration.info.bitWidth;
+      final width = registration.info.width ?? 1;
       if (width == 1) {
         // Single-bit: just value followed by code
         _sink!.writeln('$value${registration.vcdCode}');
@@ -213,8 +211,8 @@ class WellenWriter {
     }
   }
 
-  /// Write signal data from a list of SignalData objects.
-  void writeSignalData(List<SignalData> signalDataList) {
+  /// Write signal data from a list of WaveformData objects.
+  void writeSignalData(List<WaveformData> signalDataList) {
     // Collect all time points
     final allTimes = <int>{};
     for (final signalData in signalDataList) {
@@ -270,7 +268,7 @@ class WellenWriter {
     final scopes = <String, List<_SignalRegistration>>{};
 
     for (final reg in _signals.values) {
-      final scopePath = _getScopePath(reg.info.fullPath);
+      final scopePath = _getScopePath(reg.info.fullPath ?? reg.info.id);
       scopes.putIfAbsent(scopePath, () => []).add(reg);
     }
 
@@ -323,9 +321,9 @@ class WellenWriter {
     final signals = scopes[scopePath];
     if (signals != null) {
       for (final reg in signals) {
-        final typeStr = _vcdVarType(reg.info.signalType);
+        final typeStr = _vcdVarType(reg.info.type);
         _sink!.writeln(
-          '\$var $typeStr ${reg.info.bitWidth} ${reg.vcdCode} ${reg.info.name} \$end',
+          '\$var $typeStr ${reg.info.width ?? 1} ${reg.vcdCode} ${reg.info.name} \$end',
         );
       }
     }

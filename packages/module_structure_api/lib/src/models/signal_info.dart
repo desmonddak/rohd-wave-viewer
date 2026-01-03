@@ -21,21 +21,33 @@ class SignalInfo {
   /// The name of the signal.
   final String name;
 
-  /// The type of the signal (e.g., 'bin', 'hex').
+  /// The full hierarchical path (e.g., "top.counter.clk").
+  ///
+  /// This is optional and populated when loading from waveform files.
+  final String? fullPath;
+
+  /// The type of the signal (e.g., 'bin', 'hex', 'wire', 'reg', 'logic').
   final String type;
 
   /// The bit width of the signal, if applicable.
   final int? width;
 
+  /// ID of the scope (module) containing this signal.
+  ///
+  /// This is optional and populated when loading from waveform files.
+  final int? scopeId;
+
   /// Creates a new instance of [SignalInfo].
   ///
   /// Requires [id], [name], and [type] as parameters.
-  /// [width] is optional.
+  /// [width], [fullPath], and [scopeId] are optional.
   SignalInfo({
     required this.id,
     required this.name,
     required this.type,
     this.width,
+    this.fullPath,
+    this.scopeId,
   });
 
   /// Converts the [SignalInfo] instance into a JSON Map.
@@ -44,6 +56,8 @@ class SignalInfo {
         'name': name,
         'type': type,
         if (width != null) 'width': width,
+        if (fullPath != null) 'fullPath': fullPath,
+        if (scopeId != null) 'scopeId': scopeId,
       };
 
   /// Creates a new instance of [SignalInfo] from a JSON Map.
@@ -53,6 +67,8 @@ class SignalInfo {
       name: json['name'],
       type: json['type'],
       width: json['width'],
+      fullPath: json['fullPath'],
+      scopeId: json['scopeId'],
     );
   }
 
@@ -61,7 +77,7 @@ class SignalInfo {
   }
 
   @override
-  String toString() => '$name ($type)';
+  String toString() => fullPath ?? '$name ($type)';
 
   @override
   bool operator ==(Object other) =>

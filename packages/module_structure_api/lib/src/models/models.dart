@@ -7,4 +7,5 @@ export 'module_structure.dart';
 export 'module.dart';
 export 'signal.dart';
 export 'signal_info.dart';
+export 'wave_format.dart';
 export 'waveform_data.dart';

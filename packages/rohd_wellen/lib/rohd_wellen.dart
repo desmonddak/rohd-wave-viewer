@@ -1,7 +1,12 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: BSD-3-Clause
+//
+// rohd_wellen.dart
+// Wellen waveform library bindings for ROHD.
+//
+// 2026 January 03
+// Author: Desmond Kirkpatrick <desmond.a.kirkpatrick@intel.com>
 
-/// Wellen waveform library bindings for ROHD.
 ///
 /// This package provides Dart bindings to the wellen Rust library for
 /// reading and writing waveform files in various formats:
@@ -43,7 +48,18 @@
 /// ```
 library;
 
-export 'src/models/models.dart';
+// Re-export common types from module_structure_api for convenience
+export 'package:module_structure_api/module_structure_api.dart'
+    show
+        ModuleStructure,
+        Module,
+        Signal,
+        SignalInfo,
+        MetaData,
+        WaveFormat,
+        WaveformData,
+        Data;
+
 export 'src/wellen_module_structure_api.dart';
 export 'src/wellen_reader.dart';
 export 'src/wellen_wave_dumper.dart';

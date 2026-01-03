@@ -1,11 +1,11 @@
-// Copyright (C) 2024-2025 Intel Corporation
+// Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: BSD-3-Clause
 //
 // wellen_reader_test.dart
 // Tests for WellenReader using example VCD/FST/GHW files
 //
-// 2024 December
-// Author: AI Assistant
+// 2026 January 03
+// Author: Desmond Kirkpatrick <desmond.a.kirkpatrick@intel.com>
 
 import 'dart:io';
 import 'package:test/test.dart';

@@ -1,10 +1,11 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: BSD-3-Clause
 //
 // wave_format.dart
 // Waveform file format enumeration.
 //
-// 2025 Intel Corporation
+// 2026 January 03
+// Author: YDesmond Kirkpatrick <desmond.a.kirkpatrick@intel.com>
 
 /// Supported waveform file formats.
 enum WaveFormat {
@@ -53,6 +54,20 @@ enum WaveFormat {
     return WaveFormat.unknown;
   }
 
+  /// Parses a format from a string name.
+  static WaveFormat fromString(String name) {
+    switch (name.toLowerCase()) {
+      case 'vcd':
+        return WaveFormat.vcd;
+      case 'fst':
+        return WaveFormat.fst;
+      case 'ghw':
+        return WaveFormat.ghw;
+      default:
+        return WaveFormat.unknown;
+    }
+  }
+
   /// Whether this format supports writing.
   bool get supportsWriting {
     switch (this) {
@@ -60,6 +75,18 @@ enum WaveFormat {
       case WaveFormat.fst:
         return true;
       case WaveFormat.ghw:
+      case WaveFormat.unknown:
+        return false;
+    }
+  }
+
+  /// Whether this format supports reading.
+  bool get supportsReading {
+    switch (this) {
+      case WaveFormat.vcd:
+      case WaveFormat.fst:
+      case WaveFormat.ghw:
+        return true;
       case WaveFormat.unknown:
         return false;
     }
