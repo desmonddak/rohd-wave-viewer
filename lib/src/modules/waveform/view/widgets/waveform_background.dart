@@ -8,7 +8,6 @@
 // Author: Yao Jing Quek <yao.jing.quek@intel.com>
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rohd_wave_viewer/src/const/const.dart';
 import 'package:rohd_wave_viewer/src/modules/shared/widgets/signal_tab_container.dart';
@@ -27,6 +26,7 @@ class WaveformBackground extends StatefulWidget {
   final double zoomLevel;
   final ScrollController horizontalScrollController;
   final double screenWidth;
+  final bool Function()? isCtrlPressed;
 
   const WaveformBackground({
     super.key,
@@ -35,6 +35,7 @@ class WaveformBackground extends StatefulWidget {
     required this.zoomLevel,
     required this.horizontalScrollController,
     required this.screenWidth,
+    this.isCtrlPressed,
   });
 
   @override
@@ -161,50 +162,33 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
 
                       return switch (state) {
                         SignalLoading() => const SizedBox.shrink(),
-                        SignalLoaded() => GestureDetector(
-                            onTapDown: (TapDownDetails tapDownDetails) {
-                              // If Control key is held, treat drag as panning and
-                              // do not place/move the marker.
-                              final keys =
-                                  HardwareKeyboard.instance.logicalKeysPressed;
-                              final bool ctrlPressed = keys.contains(
-                                      LogicalKeyboardKey.controlLeft) ||
-                                  keys.contains(
-                                      LogicalKeyboardKey.controlRight);
-                              if (ctrlPressed) return;
+                        SignalLoaded() => Listener(
+                          // Use PointerDown to detect Control modifier reliably without
+                          // querying HardwareKeyboard.instance which can assert on some platforms.
+                            onPointerDown: (PointerDownEvent event) {
+                            // Only react to primary button presses (primary button bit = 0x01)
+                            if ((event.buttons & 0x01) == 0) return;
 
-                              final localPos = tapDownDetails.localPosition;
+                            // Prefer caller-provided Ctrl check. If not provided, assume not pressed.
+                            final bool ctrlPressed = widget.isCtrlPressed?.call() ?? false;
+                            if (ctrlPressed) return;
 
-                              // Map viewport-local X into the visible drawing region
-                              // by subtracting the fixed left offset, then scale into
-                              // the visible time range. Use viewport-local coordinates
-                              // (localPos.dx) — do NOT add scrollOffset here; the
-                              // visibleStartTime already accounts for horizontal scroll.
-                              // The GestureDetector here receives positions in content
-                              // coordinates (the full zoomed canvas width). Convert
-                              // content X to viewport-local X by subtracting the
-                              // current tracked scroll offset.
-                              final double contentX = localPos.dx;
-                              // Compute relative position using content coords so
-                              // we don't depend on whether localPos is viewport
-                              // or content-local. The painters place drawing
-                              // at contentX = trackedScroll + leftOffset + ...
-                              final double contentDrawingLeft =
-                                  _trackedScrollOffset + leftOffset;
-                              final double rel =
-                                  ((contentX - contentDrawingLeft) /
-                                          viewportDrawingWidth)
-                                      .clamp(0.0, 1.0);
-                              final int timeAtTap =
-                                  (visibleStartTime + rel * visibleTimeRange)
-                                      .toInt();
+                            final localPos = event.localPosition;
 
-                              // Send only marker time to BLoC (screen position is derived in painter)
-                              context
-                                  .read<WaveformModuleBloc>()
-                                  .add(WaveformModuleOnTap(timeAtTap));
-                            },
-                            child: Listener(
+                            // Map viewport-local X into the visible drawing region by subtracting the fixed left offset,
+                            // then scale into the visible time range. The PointerDown event localPosition is in the
+                            // coordinate space of the ListView item (content coordinates).
+                            final double contentX = localPos.dx;
+                            final double contentDrawingLeft = _trackedScrollOffset + leftOffset;
+                            final double rel = ((contentX - contentDrawingLeft) /
+                                viewportDrawingWidth)
+                              .clamp(0.0, 1.0);
+                            final int timeAtTap = (visibleStartTime + rel * visibleTimeRange).toInt();
+
+                            // Send only marker time to BLoC
+                            context.read<WaveformModuleBloc>().add(WaveformModuleOnTap(timeAtTap));
+                          },
+                          child: Listener(
                               // Block pointer signal events (mouse wheel) from scrolling
                               onPointerSignal: (event) {
                                 // Do nothing - this blocks scroll events

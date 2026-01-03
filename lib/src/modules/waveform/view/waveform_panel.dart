@@ -40,6 +40,7 @@ class _WaveformPanelState extends State<WaveformPanel> {
   final ScrollController _horizontalScrollController = ScrollController();
   late final ScrollController _verticalScrollController;
   final FocusNode _focusNode = FocusNode();
+  final Set<LogicalKeyboardKey> _pressedKeys = {};
   double _trackedScrollOffset =
       0.0; // Track scroll offset for zoom calculations
   bool _scrollRebuildPending = false;
@@ -237,6 +238,7 @@ class _WaveformPanelState extends State<WaveformPanel> {
   void _handleKeyEvent(KeyEvent event) {
     // Key events handled without verbose logging
     if (event is KeyDownEvent) {
+      _pressedKeys.add(event.logicalKey);
       if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
         _panLeft();
       } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
@@ -245,17 +247,13 @@ class _WaveformPanelState extends State<WaveformPanel> {
         _scrollUp();
       } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
         _scrollDown();
-      } else if ((HardwareKeyboard.instance.logicalKeysPressed
-                  .contains(LogicalKeyboardKey.shiftLeft) ||
-              HardwareKeyboard.instance.logicalKeysPressed
-                  .contains(LogicalKeyboardKey.shiftRight)) &&
+        } else if ((_pressedKeys.contains(LogicalKeyboardKey.shiftLeft) ||
+            _pressedKeys.contains(LogicalKeyboardKey.shiftRight)) &&
           event.logicalKey == LogicalKeyboardKey.arrowUp) {
         // Shift+Up = zoom in
         _zoomIn();
-      } else if ((HardwareKeyboard.instance.logicalKeysPressed
-                  .contains(LogicalKeyboardKey.shiftLeft) ||
-              HardwareKeyboard.instance.logicalKeysPressed
-                  .contains(LogicalKeyboardKey.shiftRight)) &&
+        } else if ((_pressedKeys.contains(LogicalKeyboardKey.shiftLeft) ||
+            _pressedKeys.contains(LogicalKeyboardKey.shiftRight)) &&
           event.logicalKey == LogicalKeyboardKey.arrowDown) {
         // Shift+Down = zoom out
         _zoomOut();
@@ -270,6 +268,8 @@ class _WaveformPanelState extends State<WaveformPanel> {
           } catch (_) {}
         });
       }
+    } else if (event is KeyUpEvent) {
+      _pressedKeys.remove(event.logicalKey);
     }
   }
 
@@ -306,10 +306,8 @@ class _WaveformPanelState extends State<WaveformPanel> {
   void _handleScroll(PointerSignalEvent event, BuildContext context) {
     if (event is PointerScrollEvent) {
       // Only zoom when Control key is held
-      final bool ctrlPressed = HardwareKeyboard.instance.logicalKeysPressed
-              .contains(LogicalKeyboardKey.controlLeft) ||
-          HardwareKeyboard.instance.logicalKeysPressed
-              .contains(LogicalKeyboardKey.controlRight);
+      final bool ctrlPressed = _pressedKeys.contains(LogicalKeyboardKey.controlLeft) ||
+          _pressedKeys.contains(LogicalKeyboardKey.controlRight);
       if (!ctrlPressed) return;
 
       final scrollDelta = event.scrollDelta.dy;
@@ -521,6 +519,8 @@ class _WaveformPanelState extends State<WaveformPanel> {
                                         horizontalScrollController:
                                             _horizontalScrollController,
                                         screenWidth: actualWidth,
+                                        isCtrlPressed: () => _pressedKeys.contains(LogicalKeyboardKey.controlLeft) ||
+                                          _pressedKeys.contains(LogicalKeyboardKey.controlRight),
                                       ),
                                     ),
                                   ),

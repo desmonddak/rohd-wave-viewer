@@ -67,6 +67,7 @@ void main() {
           timescale: 20,
           zoomLevel: 1.0,
           horizontalScrollController: ScrollController(),
+          isCtrlPressed: () => false,
           screenWidth: 800,
         ),
       );
