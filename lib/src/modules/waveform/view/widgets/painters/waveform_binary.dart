@@ -16,7 +16,8 @@ class WaveformBinary extends Waveform {
   WaveformBinary(super.waveform, super.finalTime, super.startTime,
       {super.leftOffset = waveformLeftOffset,
       super.viewportWidth = 0.0,
-      super.scrollOffset = 0.0});
+      super.scrollOffset = 0.0,
+      super.timescale = 0});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -24,7 +25,7 @@ class WaveformBinary extends Waveform {
     // Log waveform data range
     // waveform metadata logging removed
 
-    if (waveform.isEmpty || size.width <= 0 || finalTime <= 0) return;
+    if (waveform.isEmpty || size.width <= 0) return;
 
     // Use the instance leftOffset (caller may pass a scaled offset)
     final double left = leftOffset;
@@ -32,15 +33,15 @@ class WaveformBinary extends Waveform {
     // Reserve a right padding equal to the left offset (symmetric)
     final double rightPadding = left;
 
-    // Calculate pixels per time unit for mapping time -> x position.
-    // Use the viewport width (visible area) to compute pxPerTime so the
-    // painter's visible slice aligns exactly with the timescale. Then add
-    // `scrollOffset` to translate positions into content coordinates.
-    final double effectiveViewport =
-        (viewportWidth > 0.0) ? viewportWidth : size.width;
-    final double drawingWidth =
-        (effectiveViewport - left - rightPadding).clamp(0.0, double.infinity);
-    final double pxPerTime = drawingWidth / finalTime;
+    // Use ABSOLUTE time mapping: the canvas (size.width = contentWidth) represents the full timescale.
+    // Time 0 maps to x = leftOffset
+    // Time timescale maps to x = size.width - rightPadding
+    // This ensures waveform positions are consistent regardless of zoom/scroll.
+    final int effectiveTimescale = (timescale > 0) ? timescale : finalTime;
+    if (effectiveTimescale <= 0) return;
+
+    final double drawingWidth = size.width - left - rightPadding;
+    final double pxPerTime = drawingWidth / effectiveTimescale;
 
     // Draw waveform by iterating through actual data transitions
     // This avoids sampling aliasing that occurs when pixel rate matches clock rate
@@ -51,8 +52,8 @@ class WaveformBinary extends Waveform {
     double? prevX;
     double? prevY;
 
-    // Find the starting value (value at or before startTime)
-    String currentValue = getValueAtOrBeforeTime(waveform, startTime) ?? '0';
+    // Find the starting value (value at or before time 0)
+    String currentValue = getValueAtOrBeforeTime(waveform, 0) ?? '0';
 
     // Calculate Y position for a value
     double yForValue(String value) {
@@ -75,18 +76,15 @@ class WaveformBinary extends Waveform {
     prevX = startX;
     prevY = startY;
 
-    // Iterate through all data points that fall within our visible range
-    final int endTime = startTime + finalTime;
-
+    // Iterate through ALL data points (absolute mapping means we draw the full waveform)
     for (final data in waveform) {
-      // Skip points before our visible range
-      if (data.time < startTime) continue;
-      // Stop after our visible range
-      if (data.time > endTime) break;
+      // Skip points with negative time
+      if (data.time < 0) continue;
+      // Stop after timescale
+      if (data.time > effectiveTimescale) break;
 
-      // Calculate x position for this transition (add leftOffset to align with timescale)
-      final double x =
-          scrollOffset + leftOffset + (data.time - startTime) * pxPerTime;
+      // Calculate x position using absolute time mapping
+      final double x = left + data.time * pxPerTime;
       final double y = yForValue(data.value);
 
       // Draw horizontal line from previous position to this x (at previous y level)
@@ -103,7 +101,7 @@ class WaveformBinary extends Waveform {
 
     // Draw final horizontal line to the right edge of the drawing region
     if (prevY != null) {
-      final double rightEdgeX = scrollOffset + left + drawingWidth;
+      final double rightEdgeX = left + drawingWidth;
       binValPath.lineTo(rightEdgeX, prevY);
     }
 

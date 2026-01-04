@@ -1,11 +1,11 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: BSD-3-Clause
 //
 // wellen_module_structure_api.dart
 // Implementation of ModuleStructureApi using Wellen library
 //
 // 2026 January 03
-// Author: YDesmond Kirkpatrick <desmond.a.kirkpatrick@intel.com>
+// Author: Desmond Kirkpatrick <desmond.a.kirkpatrick@intel.com>
 
 import 'package:module_structure_api/module_structure_api.dart';
 import 'package:rohd_wellen/src/rust/api.dart' as rust;

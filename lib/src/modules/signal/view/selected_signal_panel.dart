@@ -8,7 +8,6 @@
 // Author: Yao Jing Quek <yao.jing.quek@intel.com>
 
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rohd_wave_viewer/src/const/locales.dart';
 import 'package:rohd_wave_viewer/src/modules/shared/widgets/signal_tab_container.dart';
@@ -43,12 +42,58 @@ class SelectedSignalsPanel extends StatelessWidget {
                             containerBody: Text(''));
                       }
                       final signal = state.monitorSignalsList[index];
+                      final isFocused = state.focusedSignal?.id == signal.id;
+
                       return MouseRegion(
                         cursor: SystemMouseCursors.click,
                         child: GestureDetector(
-                          child: SignalTabContainer(
-                            showBorder: true,
-                            containerBody: Text(signal.name),
+                          onTap: () {
+                            // Toggle focus on this signal
+                            if (isFocused) {
+                              context
+                                  .read<SignalBloc>()
+                                  .add(SignalUnfocusEvent());
+                            } else {
+                              context
+                                  .read<SignalBloc>()
+                                  .add(SignalFocusEvent(signal));
+                            }
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              border: isFocused
+                                  ? Border.all(
+                                      color: Colors.cyan,
+                                      width: 2.0,
+                                    )
+                                  : null,
+                              color: isFocused
+                                  ? Colors.blue.withValues(alpha: 0.2)
+                                  : Colors.transparent,
+                            ),
+                            child: SignalTabContainer(
+                              showBorder: true,
+                              containerBody: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(signal.name),
+                                  ),
+                                  if (isFocused)
+                                    const Padding(
+                                      padding: EdgeInsets.only(right: 8.0),
+                                      child: Tooltip(
+                                        message:
+                                            'Click to deselect. Arrow keys navigate data points.',
+                                        child: Icon(
+                                          Icons.check_circle,
+                                          color: Colors.cyan,
+                                          size: 16,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       );

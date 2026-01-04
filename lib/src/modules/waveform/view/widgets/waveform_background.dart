@@ -43,7 +43,6 @@ class WaveformBackground extends StatefulWidget {
 }
 
 class _WaveformBackgroundState extends State<WaveformBackground> {
-  double _trackedScrollOffset = 0.0;
   bool _scrollRebuildPending = false;
   int _lastSignalCount = 0;
 
@@ -82,10 +81,6 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
   }
 
   void _onScroll() {
-    // Update tracked offset and schedule at most one rebuild per frame
-    if (widget.horizontalScrollController.hasClients) {
-      _trackedScrollOffset = widget.horizontalScrollController.offset;
-    }
     if (_scrollRebuildPending) return;
     _scrollRebuildPending = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -128,10 +123,6 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
           const double baseLeftOffset = waveformLeftOffset;
           const double leftOffset = baseLeftOffset;
           const double rightPadding = baseLeftOffset;
-          // Drawing width for the visible viewport (used by painters)
-          final double viewportDrawingWidth =
-              (viewportWidth - leftOffset - rightPadding)
-                  .clamp(0.0, double.infinity);
 
           return Column(
             children: [
@@ -163,32 +154,41 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
                       return switch (state) {
                         SignalLoading() => const SizedBox.shrink(),
                         SignalLoaded() => Listener(
-                          // Use PointerDown to detect Control modifier reliably without
-                          // querying HardwareKeyboard.instance which can assert on some platforms.
+                            // Use PointerDown to detect Control modifier reliably without
+                            // querying HardwareKeyboard.instance which can assert on some platforms.
                             onPointerDown: (PointerDownEvent event) {
-                            // Only react to primary button presses (primary button bit = 0x01)
-                            if ((event.buttons & 0x01) == 0) return;
+                              // Only react to primary button presses (primary button bit = 0x01)
+                              if ((event.buttons & 0x01) == 0) return;
 
-                            // Prefer caller-provided Ctrl check. If not provided, assume not pressed.
-                            final bool ctrlPressed = widget.isCtrlPressed?.call() ?? false;
-                            if (ctrlPressed) return;
+                              // Prefer caller-provided Ctrl check. If not provided, assume not pressed.
+                              final bool ctrlPressed =
+                                  widget.isCtrlPressed?.call() ?? false;
+                              if (ctrlPressed) return;
 
-                            final localPos = event.localPosition;
+                              final localPos = event.localPosition;
 
-                            // Map viewport-local X into the visible drawing region by subtracting the fixed left offset,
-                            // then scale into the visible time range. The PointerDown event localPosition is in the
-                            // coordinate space of the ListView item (content coordinates).
-                            final double contentX = localPos.dx;
-                            final double contentDrawingLeft = _trackedScrollOffset + leftOffset;
-                            final double rel = ((contentX - contentDrawingLeft) /
-                                viewportDrawingWidth)
-                              .clamp(0.0, 1.0);
-                            final int timeAtTap = (visibleStartTime + rel * visibleTimeRange).toInt();
+                              // Use ABSOLUTE time mapping (inverse of cursor drawing formula):
+                              // Drawing: contentX = leftOffset + (time / timescale) * drawingContentWidth
+                              // Picking: time = ((contentX - leftOffset) / drawingContentWidth) * timescale
+                              final double drawingContentWidth =
+                                  contentWidth - leftOffset - rightPadding;
+                              if (drawingContentWidth <= 0 ||
+                                  widget.timescale <= 0) {
+                                return;
+                              }
 
-                            // Send only marker time to BLoC
-                            context.read<WaveformModuleBloc>().add(WaveformModuleOnTap(timeAtTap));
-                          },
-                          child: Listener(
+                              final double rel = ((localPos.dx - leftOffset) /
+                                      drawingContentWidth)
+                                  .clamp(0.0, 1.0);
+                              final int timeAtTap =
+                                  (rel * widget.timescale).toInt();
+
+                              // Send only marker time to BLoC
+                              context
+                                  .read<WaveformModuleBloc>()
+                                  .add(WaveformModuleOnTap(timeAtTap));
+                            },
+                            child: Listener(
                               // Block pointer signal events (mouse wheel) from scrolling
                               onPointerSignal: (event) {
                                 // Do nothing - this blocks scroll events
@@ -255,36 +255,25 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
                         child: BlocBuilder<WaveformModuleBloc,
                             WaveformModuleState>(
                           builder: (context, state) {
-                            // Compute cursor X in content coordinates from state.timePs
-                            double cursorContentX = leftOffset;
-
+                            // Use ABSOLUTE time mapping - same as WaveformBinary/WaveformHexaValue painters:
+                            // contentX = leftOffset + (time / timescale) * drawingContentWidth
+                            // where drawingContentWidth = contentWidth - leftOffset - rightPadding
+                            //
+                            // This ensures the marker aligns exactly with the waveform transitions.
                             final int t = state.timePs;
-
-                            if (visibleTimeRange > 0 && t > 0) {
-                              // Map marker time to content X using the same formula as waveform painters:
-                              // contentX = scrollOffset + leftOffset + ((time - visibleStartTime) / visibleTimeRange) * viewportDrawingWidth
-                              // This positions the cursor in content coordinates, matching the waveform painters.
-                              cursorContentX = _trackedScrollOffset +
-                                  leftOffset +
-                                  ((t.toDouble() - visibleStartTime) /
-                                          visibleTimeRange) *
-                                      viewportDrawingWidth;
+                            if (t < 0 || widget.timescale <= 0) {
+                              return const SizedBox.shrink();
                             }
 
-                            // cursorContentX is in content coordinates (matches waveform painters)
-                            // The visible area in content coords is: scrollOffset+leftOffset to scrollOffset+leftOffset+viewportDrawingWidth
-                            double cursorFinalX = cursorContentX;
+                            final double drawingContentWidth =
+                                contentWidth - leftOffset - rightPadding;
+                            final double cursorContentX = leftOffset +
+                                (t.toDouble() / widget.timescale.toDouble()) *
+                                    drawingContentWidth;
 
-                            // Determine visible content bounds (content coordinates)
-                            final double visibleLeft =
-                                _trackedScrollOffset + leftOffset;
-                            final double visibleRight = _trackedScrollOffset +
-                                leftOffset +
-                                viewportDrawingWidth;
-
-                            // If cursor is off-screen (outside visible content), do not draw it.
-                            if (cursorFinalX < visibleLeft ||
-                                cursorFinalX > visibleRight) {
+                            // Check if cursor is within the content range
+                            if (cursorContentX < 0 ||
+                                cursorContentX > contentWidth) {
                               return const SizedBox.shrink();
                             }
 
@@ -292,7 +281,7 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
                             // For now use a fixed Y position in the center
                             const double cursorViewportY = 100.0;
                             final cursorOffset =
-                                Offset(cursorFinalX, cursorViewportY);
+                                Offset(cursorContentX, cursorViewportY);
                             return CursorWidget(cursorOffset);
                           },
                         ),
@@ -354,7 +343,7 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
         // Removed LayoutBuilder constraint debug logging
         return SizedBox(
           key: ValueKey(
-              'waveform_row_${painterWidth}_${visibleTimeRange}_$startTime'),
+              'waveform_row_${painterWidth}_${widget.timescale}_${widget.zoomLevel}'),
           width: painterWidth,
           height: signalRowHeight,
           child: Padding(
@@ -363,27 +352,21 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
               size: Size.infinite,
               isComplex: true,
               willChange: true,
-              // Use the full timescale (widget.timescale) as the painter's
-              // finalTime. The canvas width already reflects zoom via
-              // the parent SizedBox, so passing visibleTimeRange here
-              // caused a squared zoom effect (zoom^2). Using the full
-              // timescale makes pixels-per-time scale linearly with zoom.
-              // Pass the scaled left offset to the painter so it uses
-              // the correct offset under zoom (prevents double-shift).
-              // Use absolute mapping: finalTime = full timescale,
-              // startTime = 0. Scrolling is handled by the
-              // Horizontal ScrollView, which clips the large canvas.
+              // Use ABSOLUTE time mapping: pass timescale so painters map
+              // time 0 to leftOffset and time=timescale to width-rightPadding.
+              // The canvas width is contentWidth (zoomed), so waveforms scale correctly.
+              // ScrollView handles clipping to show the visible portion.
               painter: sigType == SignalType.hexadecimal
-                  ? WaveformHexaValue(
-                      data, visibleTimeRange.toInt(), visibleStartTime.toInt(),
+                  ? WaveformHexaValue(data, visibleTimeRange, startTime,
                       leftOffset: leftOffset,
                       viewportWidth: viewportWidth,
-                      scrollOffset: scrollOffset)
-                  : WaveformBinary(
-                      data, visibleTimeRange.toInt(), visibleStartTime.toInt(),
+                      scrollOffset: scrollOffset,
+                      timescale: widget.timescale)
+                  : WaveformBinary(data, visibleTimeRange, startTime,
                       leftOffset: leftOffset,
                       viewportWidth: viewportWidth,
-                      scrollOffset: scrollOffset),
+                      scrollOffset: scrollOffset,
+                      timescale: widget.timescale),
             ),
           ),
         );

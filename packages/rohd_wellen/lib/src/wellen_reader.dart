@@ -1,10 +1,11 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: BSD-3-Clause
 //
 // wellen_reader.dart
 // Wellen-based waveform file reader for VCD, FST, GHW formats.
 //
-// 2025 Intel Corporation
+// 2026 January 03
+// Author: Desmond Kirkpatrick <desmond.a.kirkpatrick@intel.com>
 
 import 'dart:async';
 

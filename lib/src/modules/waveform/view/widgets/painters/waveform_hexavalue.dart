@@ -15,7 +15,8 @@ class WaveformHexaValue extends Waveform {
   WaveformHexaValue(super.waveform, super.finalTime, super.startTime,
       {super.leftOffset = waveformLeftOffset,
       super.viewportWidth = 0.0,
-      super.scrollOffset = 0.0});
+      super.scrollOffset = 0.0,
+      super.timescale = 0});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -26,7 +27,10 @@ class WaveformHexaValue extends Waveform {
     final double drawingWidth =
         (size.width - left - rightPadding).clamp(0.0, double.infinity);
 
-    // Removed some debug-only mapping diagnostics
+    // Use ABSOLUTE time mapping: the canvas represents the full timescale.
+    final int effectiveTimescale = (timescale > 0) ? timescale : finalTime;
+    if (effectiveTimescale <= 0 || drawingWidth <= 0) return;
+
     const space = 3;
 
     final topPath = Path();
@@ -43,12 +47,12 @@ class WaveformHexaValue extends Waveform {
     String? prevSignal;
 
     for (int px = 0; px < widthPx; px++) {
-      final int timeAtPx =
-          startTime + ((px / drawingWidth) * finalTime).round();
+      // Map pixel position to time using absolute mapping
+      final int timeAtPx = ((px / drawingWidth) * effectiveTimescale).round();
       final value =
           getValueAtOrBeforeTime(waveform, timeAtPx) ?? prevSignal ?? '0';
-      // Map px into actual content x by adding the left offset and scrollOffset
-      final double x = scrollOffset + left + px.toDouble();
+      // Map px into actual content x by adding the left offset (no scrollOffset needed with absolute mapping)
+      final double x = left + px.toDouble();
       const double posYTop = 0;
       final double posYBottom = size.height;
 

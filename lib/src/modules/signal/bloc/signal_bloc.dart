@@ -23,6 +23,8 @@ class SignalBloc extends Bloc<SignalEvent, SignalState> {
         super(SignalLoading()) {
     on<SignalUpdateEvent>(updateSignals);
     on<SignalSelectedEvent>(addSignalToMonitor);
+    on<SignalFocusEvent>(focusSignal);
+    on<SignalUnfocusEvent>(unfocusSignal);
   }
 
   void updateSignals(
@@ -32,7 +34,11 @@ class SignalBloc extends Bloc<SignalEvent, SignalState> {
     final signals = _moduleStructureRepository
         .getSignalsBySelectedModule(event.selectedModule);
 
-    emit(SignalLoaded(signals, state.monitorSignalsList));
+    emit(SignalLoaded(
+      signals,
+      state.monitorSignalsList,
+      focusedSignal: state.focusedSignal,
+    ));
   }
 
   void addSignalToMonitor(
@@ -42,6 +48,31 @@ class SignalBloc extends Bloc<SignalEvent, SignalState> {
     emit(SignalLoaded(
       state.signals,
       [...state.monitorSignalsList, event.selectedSignal],
+      focusedSignal: state.focusedSignal,
+    ));
+  }
+
+  /// Focus on a signal for data-point-by-data-point navigation.
+  void focusSignal(
+    SignalFocusEvent event,
+    Emitter<SignalState> emit,
+  ) {
+    emit(SignalLoaded(
+      state.signals,
+      state.monitorSignalsList,
+      focusedSignal: event.signal,
+    ));
+  }
+
+  /// Unfocus the current signal; return to normal navigation.
+  void unfocusSignal(
+    SignalUnfocusEvent event,
+    Emitter<SignalState> emit,
+  ) {
+    emit(SignalLoaded(
+      state.signals,
+      state.monitorSignalsList,
+      focusedSignal: null,
     ));
   }
 }

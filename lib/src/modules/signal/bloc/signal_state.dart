@@ -12,17 +12,26 @@ part of 'signal_bloc.dart';
 sealed class SignalState extends Equatable {
   final List<Signal> signals;
   final List<Signal> monitorSignalsList;
+  final Signal? focusedSignal;
 
-  const SignalState(this.signals, this.monitorSignalsList);
+  const SignalState(
+    this.signals,
+    this.monitorSignalsList, {
+    this.focusedSignal,
+  });
 
   @override
-  List<Object> get props => [monitorSignalsList, signals];
+  List<Object?> get props => [monitorSignalsList, signals, focusedSignal];
 }
 
 final class SignalLoading extends SignalState {
-  SignalLoading() : super([], []);
+  SignalLoading() : super([], [], focusedSignal: null);
 }
 
 final class SignalLoaded extends SignalState {
-  const SignalLoaded(super.signals, super.monitorSignalsList);
+  const SignalLoaded(
+    super.signals,
+    super.monitorSignalsList, {
+    super.focusedSignal,
+  });
 }

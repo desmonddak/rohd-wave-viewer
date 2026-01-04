@@ -171,4 +171,77 @@ class Signal {
       return data.first.value;
     }
   }
+
+  /// Finds the index of the data point at or after the given time using binary search.
+  /// Returns -1 if no data point is at or after the given time.
+  /// O(log n) complexity, safe for large waveforms.
+  int getNextDataPointIndexAfter(int time) {
+    if (data.isEmpty) return -1;
+
+    int low = 0;
+    int high = data.length - 1;
+    int resultIndex = -1;
+
+    while (low <= high) {
+      int mid = low + (high - low) ~/ 2;
+      Data midData = data[mid];
+
+      if (midData.time >= time) {
+        resultIndex = mid;
+        high = mid - 1; // Continue searching left for the first match
+      } else {
+        low = mid + 1; // Search right
+      }
+    }
+
+    return resultIndex;
+  }
+
+  /// Finds the index of the data point at or before the given time using binary search.
+  /// Returns -1 if no data point is at or before the given time.
+  /// O(log n) complexity, safe for large waveforms.
+  int getPreviousDataPointIndexBefore(int time) {
+    if (data.isEmpty) return -1;
+
+    int low = 0;
+    int high = data.length - 1;
+    int resultIndex = -1;
+
+    while (low <= high) {
+      int mid = low + (high - low) ~/ 2;
+      Data midData = data[mid];
+
+      if (midData.time <= time) {
+        resultIndex = mid;
+        low = mid + 1; // Continue searching right for the last match
+      } else {
+        high = mid - 1; // Search left
+      }
+    }
+
+    return resultIndex;
+  }
+
+  /// Gets the next data point index from the current time.
+  /// If there is a data point at exactly the current time, returns the next one.
+  /// Returns -1 if there is no next data point.
+  int getNextDataPointIndex(int currentTime) {
+    int idx = getNextDataPointIndexAfter(currentTime);
+    if (idx != -1 && data[idx].time == currentTime && idx + 1 < data.length) {
+      return idx + 1;
+    }
+    return idx != -1 && idx < data.length ? idx : -1;
+  }
+
+  /// Gets the previous data point index from the current time.
+  /// If there is a data point at exactly the current time, returns the previous one.
+  /// Returns -1 if there is no previous data point.
+  int getPreviousDataPointIndex(int currentTime) {
+    int idx = getPreviousDataPointIndexBefore(currentTime);
+    if (idx != -1 && data[idx].time == currentTime) {
+      // If we're at a data point, return the previous one (or -1 if there isn't one)
+      return idx > 0 ? idx - 1 : -1;
+    }
+    return idx >= 0 ? idx : -1;
+  }
 }

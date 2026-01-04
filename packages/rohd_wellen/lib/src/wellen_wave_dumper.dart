@@ -1,10 +1,11 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: BSD-3-Clause
 //
 // wellen_wave_dumper.dart
 // A WaveDumper-compatible class for dumping waveforms using wellen.
 //
-// 2025 Intel Corporation
+// 2026 January 03
+// Author: Desmond Kirkpatrick <desmond.a.kirkpatrick@intel.com>
 
 import 'dart:async';
 

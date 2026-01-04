@@ -26,16 +26,19 @@ abstract class Waveform extends CustomPainter {
     ..style = PaintingStyle.stroke;
 
   final List<Data> waveform;
-  final int finalTime;
-  final int startTime;
+  final int
+      finalTime; // Visible time range (kept for compatibility, but use timescale for mapping)
+  final int startTime; // Visible start time (kept for compatibility)
   final double leftOffset; // Left offset to align with timescale
   final double viewportWidth; // visible viewport width in pixels
   final double scrollOffset; // horizontal scroll offset in pixels
+  final int timescale; // Full timescale for absolute time mapping
 
   Waveform(this.waveform, this.finalTime, this.startTime,
       {this.leftOffset = waveformLeftOffset,
       this.viewportWidth = 0.0,
-      this.scrollOffset = 0.0});
+      this.scrollOffset = 0.0,
+      this.timescale = 0});
 
   /// Find the last value at or before [time] using binary search on ordered data.
   String? getValueAtOrBeforeTime(List<Data> data, int time) {
