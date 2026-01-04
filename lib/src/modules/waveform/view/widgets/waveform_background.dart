@@ -8,6 +8,7 @@
 // Author: Yao Jing Quek <yao.jing.quek@intel.com>
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rohd_wave_viewer/src/const/const.dart';
 import 'package:rohd_wave_viewer/src/modules/shared/widgets/signal_tab_container.dart';
@@ -17,6 +18,14 @@ import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/cursor.dart';
 import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/painters/waveform_hexavalue.dart';
 import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/painters/waveform_binary.dart';
 import 'package:module_structure_api/module_structure_api.dart';
+import 'dart:async';
+import 'dart:js_interop';
+
+@JS('window.requestAnimationFrame')
+external void _jsRequestAnimationFrame(JSFunction callback);
+
+@JS('window.rohdForceRepaint')
+external void _jsRohdForceRepaint();
 
 enum SignalType { binary, hexadecimal }
 
@@ -45,12 +54,19 @@ class WaveformBackground extends StatefulWidget {
 class _WaveformBackgroundState extends State<WaveformBackground> {
   bool _scrollRebuildPending = false;
   int _lastSignalCount = 0;
+  // Notifier used to trigger CustomPainter repaint when zoom/scroll changes
+  final ValueNotifier<int> _repaintNotifier = ValueNotifier<int>(0);
 
   @override
   void initState() {
     super.initState();
     // Listen to horizontal scroll changes to update timescale
     widget.horizontalScrollController.addListener(_onScroll);
+    // Prime painters to ensure initial paint and to avoid cases where
+    // the painter doesn't observe immediate subsequent repaint triggers.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _repaintNotifier.value++;
+    });
   }
 
   @override
@@ -64,6 +80,12 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
       setState(() {
         // Trigger rebuild when zoom or screen size changes
       });
+      // Notify painters to repaint on zoom or viewport change
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _repaintNotifier.value++;
+        debugPrint('[WaveformBackground] repaintNotifier bumped due to zoom/viewport change -> ${_repaintNotifier.value}');
+      });
     }
 
     // If scroll controller changed, update listener
@@ -76,7 +98,9 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
 
   @override
   void dispose() {
+    _repaintTimer?.cancel();
     widget.horizontalScrollController.removeListener(_onScroll);
+    _repaintNotifier.dispose();
     super.dispose();
   }
 
@@ -85,167 +109,192 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
     _scrollRebuildPending = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) setState(() {});
+      // Notify painters to repaint as scroll offset changed
+      _repaintNotifier.value++;
       _scrollRebuildPending = false;
     });
   }
 
+  Timer? _repaintTimer;
+
+  /// Force a repaint from outside the widget (used by the parent panel during zoom)
+  void forceRepaint() {
+    if (!mounted) return;
+    debugPrint('[WaveformBackground] forceRepaint called -> ${_repaintNotifier.value + 1}');
+    
+    // Cancel any pending timer
+    _repaintTimer?.cancel();
+    
+    // Use a timer to force multiple repaints over 100ms
+    // This keeps the compositor active in embedded webviews
+    int count = 0;
+    _repaintTimer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
+      if (!mounted || count >= 10) {
+        timer.cancel();
+        return;
+      }
+      count++;
+      _repaintNotifier.value++;
+      setState(() {});
+      SchedulerBinding.instance.scheduleFrame();
+      // Also call JS requestAnimationFrame to nudge the browser
+      _requestBrowserAnimationFrame();
+      // Call the DOM-level force repaint (toggles class to force compositor flush)
+      _callJsForceRepaint();
+    });
+  }
+
+  void _callJsForceRepaint() {
+    try {
+      _jsRohdForceRepaint();
+    } catch (e) {
+      debugPrint('[WaveformBackground] JS force repaint error: $e');
+    }
+  }
+
+  void _requestBrowserAnimationFrame() {
+    try {
+      _jsRequestAnimationFrame((() {
+        // Empty callback - just want to trigger a frame
+      }).toJS);
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.black,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          // Use actual rendered width (content width) to avoid race conditions when resizing
-          final contentWidth =
-              constraints.maxWidth; // full zoomed content width
-          final viewportWidth = widget.screenWidth; // visible viewport width
-          // Removed verbose debug logging for production build
-          final scrollOffset = widget.horizontalScrollController.hasClients
-              ? widget.horizontalScrollController.offset
-              : 0.0;
+    return RepaintBoundary(
+      child: Container(
+        color: Colors.black,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Use actual rendered width (content width) to avoid race conditions when resizing
+            final contentWidth =
+                constraints.maxWidth; // full zoomed content width
+            final viewportWidth = widget.screenWidth; // visible viewport width
+            // Removed verbose debug logging for production build
+            final scrollOffset = widget.horizontalScrollController.hasClients
+                ? widget.horizontalScrollController.offset
+                : 0.0;
 
-          // Use the same mapping as WaveformPanel:
-          // visibleTimeRange = totalTime / zoomLevel
-          // visibleStartTime computed from scroll fraction over maxScrollExtent
-          final visibleTimeRange =
-              widget.timescale.toDouble() / widget.zoomLevel;
-          final maxScrollExtent =
-              (contentWidth - viewportWidth).clamp(0.0, double.infinity);
-          final scrollFraction =
-              (maxScrollExtent > 0) ? (scrollOffset / maxScrollExtent) : 0.0;
-          final maxStartTime = widget.timescale.toDouble() - visibleTimeRange;
-          final visibleStartTime = scrollFraction * maxStartTime;
-          // Removed verbose debug logging for production
+            // Use the same mapping as WaveformPanel:
+            // visibleTimeRange = totalTime / zoomLevel
+            // visibleStartTime computed from scroll fraction over maxScrollExtent
+            final visibleTimeRange =
+                widget.timescale.toDouble() / widget.zoomLevel;
+            final maxScrollExtent =
+                (contentWidth - viewportWidth).clamp(0.0, double.infinity);
+            final scrollFraction =
+                (maxScrollExtent > 0) ? (scrollOffset / maxScrollExtent) : 0.0;
+            final maxStartTime = widget.timescale.toDouble() - visibleTimeRange;
+            final visibleStartTime = scrollFraction * maxStartTime;
+            // Removed verbose debug logging for production
 
-          // Compute drawing region accounting for symmetric left/right padding
-          // Use a constant unscaled left offset (screen pixels) so the margin
-          // does not change when zooming.
-          const double baseLeftOffset = waveformLeftOffset;
-          const double leftOffset = baseLeftOffset;
-          const double rightPadding = baseLeftOffset;
+            // Compute drawing region accounting for symmetric left/right padding
+            // Use a constant unscaled left offset (screen pixels) so the margin
+            // does not change when zooming.
+            const double baseLeftOffset = waveformLeftOffset;
+            const double leftOffset = baseLeftOffset;
+            const double rightPadding = baseLeftOffset;
 
-          return Column(
-            children: [
-              // Scrollable waveforms (timescale is now in WaveformPanel)
-              Expanded(
-                child: Stack(
-                  children: [
-                    // Waveforms and gesture handlers first (drawn first, behind)
-                    BlocBuilder<SignalBloc, SignalState>(
+            return Column(
+              children: [
+                // Scrollable waveforms (timescale is now in WaveformPanel)
+                Expanded(
+                  child: Stack(
+                    children: [
+                      // Waveforms and gesture handlers first (drawn first, behind)
+                      BlocBuilder<SignalBloc, SignalState>(
                         builder: (content, state) {
-                      // Keep build lighter: avoid verbose debug printing
+                          // Keep build lighter: avoid verbose debug printing
 
-                      // When signal count changes, schedule a scroll controller
-                      // layout recalculation to update maxScrollExtent for the new content height.
-                      if (state is SignalLoaded &&
-                          state.monitorSignalsList.length != _lastSignalCount) {
-                        _lastSignalCount = state.monitorSignalsList.length;
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (mounted &&
-                              widget.verticalScrollController?.hasClients ==
-                                  true) {
-                            // Post-frame callback ensures layout has settled before we
-                            // try to access scroll metrics. The scroll extent should now
-                            // reflect the new ListView height.
-                          }
-                        });
-                      }
+                          // When signal count changes, schedule a scroll controller
+                          // layout recalculation to update maxScrollExtent for the new content height.
+                          if (state is SignalLoaded &&
+                              state.monitorSignalsList.length != _lastSignalCount) {
+                            _lastSignalCount = state.monitorSignalsList.length;
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted &&
+                                widget.verticalScrollController?.hasClients ==
+                                    true) {
+                              // Trigger a repaint when signal count changes
+                              _repaintNotifier.value++;
+                            }
+                          });
+                        }
 
-                      return switch (state) {
-                        SignalLoading() => const SizedBox.shrink(),
-                        SignalLoaded() => Listener(
-                            // Use PointerDown to detect Control modifier reliably without
-                            // querying HardwareKeyboard.instance which can assert on some platforms.
-                            onPointerDown: (PointerDownEvent event) {
-                              // Only react to primary button presses (primary button bit = 0x01)
-                              if ((event.buttons & 0x01) == 0) return;
+                        if (state is! SignalLoaded) {
+                          return const SizedBox.shrink();
+                        }
 
-                              // Prefer caller-provided Ctrl check. If not provided, assume not pressed.
-                              final bool ctrlPressed =
-                                  widget.isCtrlPressed?.call() ?? false;
-                              if (ctrlPressed) return;
+                        // When we have loaded signals, render the list of waveforms.
+                        return Listener(
+                          // Use PointerDown to detect Control modifier reliably without
+                          // querying HardwareKeyboard.instance which can assert on some platforms.
+                          onPointerDown: (PointerDownEvent event) {
+                            // Only react to primary button presses (primary button bit = 0x01)
+                            if ((event.buttons & 0x01) == 0) return;
 
-                              final localPos = event.localPosition;
+                            // Prefer caller-provided Ctrl check. If not provided, assume not pressed.
+                            final bool ctrlPressed = widget.isCtrlPressed?.call() ?? false;
+                            if (ctrlPressed) return;
 
-                              // Use ABSOLUTE time mapping (inverse of cursor drawing formula):
-                              // Drawing: contentX = leftOffset + (time / timescale) * drawingContentWidth
-                              // Picking: time = ((contentX - leftOffset) / drawingContentWidth) * timescale
-                              final double drawingContentWidth =
-                                  contentWidth - leftOffset - rightPadding;
-                              if (drawingContentWidth <= 0 ||
-                                  widget.timescale <= 0) {
-                                return;
-                              }
+                            final localPos = event.localPosition;
 
-                              final double rel = ((localPos.dx - leftOffset) /
-                                      drawingContentWidth)
-                                  .clamp(0.0, 1.0);
-                              final int timeAtTap =
-                                  (rel * widget.timescale).toInt();
+                            // Use ABSOLUTE time mapping (inverse of cursor drawing formula):
+                            // Drawing: contentX = leftOffset + (time / timescale) * drawingContentWidth
+                            // Picking: time = ((contentX - leftOffset) / drawingContentWidth) * timescale
+                            final double drawingContentWidth = contentWidth - leftOffset - rightPadding;
+                            if (drawingContentWidth <= 0 || widget.timescale <= 0) {
+                              return;
+                            }
 
-                              // Send only marker time to BLoC
-                              context
-                                  .read<WaveformModuleBloc>()
-                                  .add(WaveformModuleOnTap(timeAtTap));
+                            final double rel = ((localPos.dx - leftOffset) / drawingContentWidth).clamp(0.0, 1.0);
+                            final int timeAtTap = (rel * widget.timescale).toInt();
+
+                            // Send only marker time to BLoC
+                            context.read<WaveformModuleBloc>().add(WaveformModuleOnTap(timeAtTap));
+                          },
+                          child: Listener(
+                            // Block pointer signal events (mouse wheel) from scrolling
+                            onPointerSignal: (event) {
+                              // Do nothing - this blocks scroll events
                             },
-                            child: Listener(
-                              // Block pointer signal events (mouse wheel) from scrolling
-                              onPointerSignal: (event) {
-                                // Do nothing - this blocks scroll events
-                              },
-                              child: ScrollConfiguration(
-                                // Disable pointer signal (mouse wheel) scrolling on ListView
-                                behavior:
-                                    ScrollConfiguration.of(context).copyWith(
-                                  scrollbars: true,
-                                ),
-                                child: ListView.builder(
-                                  controller: widget.verticalScrollController,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  itemCount:
-                                      state.monitorSignalsList.length + 1,
-                                  itemBuilder: (context, index) {
-                                    if (index ==
-                                        state.monitorSignalsList.length) {
-                                      return const SignalTabContainer(
-                                        containerBody: Text(''),
-                                      );
-                                    }
-                                    final sig = state.monitorSignalsList[index];
-                                    // Removed detailed waveform data logging
-                                    // Use the full content width (zoomed width) so each
-                                    // waveform row spans the entire scrollable area.
-                                    // Painters still draw only the visible range using
-                                    // the passed `viewportWidth`/`visibleStartTime`.
-                                    final actualWidth = contentWidth;
-                                    // Removed layout debug logging
-                                    // Pass the visible time slice to the painter
-                                    // (visibleStartTime/visibleTimeRange). The
-                                    // row width is the full content width so the
-                                    // widget can be scrolled; painters compute
-                                    // pixel positions using the viewport mapping
-                                    // and the provided scrollOffset to place
-                                    // their visible drawing into the content.
-                                    return drawWaveform(
-                                        context,
-                                        sig.data,
-                                        sig.type == 'hex'
-                                            ? SignalType.hexadecimal
-                                            : SignalType.binary,
-                                        actualWidth,
-                                        visibleStartTime.toInt(),
-                                        visibleTimeRange.toInt(),
-                                        leftOffset,
-                                        visibleStartTime,
-                                        viewportWidth,
-                                        scrollOffset);
-                                  },
-                                ),
+                            child: ScrollConfiguration(
+                              // Disable pointer signal (mouse wheel) scrolling on ListView
+                              behavior: ScrollConfiguration.of(context).copyWith(
+                                scrollbars: true,
+                              ),
+                              child: ListView.builder(
+                                controller: widget.verticalScrollController,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: state.monitorSignalsList.length + 1,
+                                itemBuilder: (context, index) {
+                                  if (index == state.monitorSignalsList.length) {
+                                    return const SignalTabContainer(
+                                      containerBody: Text(''),
+                                    );
+                                  }
+                                  final sig = state.monitorSignalsList[index];
+                                  final actualWidth = contentWidth;
+                                  return drawWaveform(
+                                    context,
+                                    sig.data,
+                                    sig.type == 'hex' ? SignalType.hexadecimal : SignalType.binary,
+                                    actualWidth,
+                                    visibleStartTime.toInt(),
+                                    visibleTimeRange.toInt(),
+                                    leftOffset,
+                                    visibleStartTime,
+                                    viewportWidth,
+                                    scrollOffset,
+                                  );
+                                },
                               ),
                             ),
                           ),
-                      };
-                    }),
+                        );
+                      },
+                    ),
                     // Marker/Cursor last (drawn last, on top)
                     // `Positioned` must be a direct child of the `Stack` so place it
                     // here and wrap its child with `IgnorePointer` so taps pass
@@ -293,6 +342,7 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
             ],
           );
         },
+        ),
       ),
     );
   }
@@ -342,32 +392,38 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
       builder: (context, rowConstraints) {
         // Removed LayoutBuilder constraint debug logging
         return SizedBox(
-          key: ValueKey(
-              'waveform_row_${painterWidth}_${widget.timescale}_${widget.zoomLevel}'),
           width: painterWidth,
           height: signalRowHeight,
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
-            child: CustomPaint(
-              size: Size.infinite,
-              isComplex: true,
-              willChange: true,
-              // Use ABSOLUTE time mapping: pass timescale so painters map
-              // time 0 to leftOffset and time=timescale to width-rightPadding.
-              // The canvas width is contentWidth (zoomed), so waveforms scale correctly.
-              // ScrollView handles clipping to show the visible portion.
-              painter: sigType == SignalType.hexadecimal
-                  ? WaveformHexaValue(data, visibleTimeRange, startTime,
-                      leftOffset: leftOffset,
-                      viewportWidth: viewportWidth,
-                      scrollOffset: scrollOffset,
-                      timescale: widget.timescale)
-                  : WaveformBinary(data, visibleTimeRange, startTime,
-                      leftOffset: leftOffset,
-                      viewportWidth: viewportWidth,
-                      scrollOffset: scrollOffset,
-                      timescale: widget.timescale),
-            ),
+              child: ValueListenableBuilder<int>(
+                valueListenable: _repaintNotifier,
+                builder: (context, repaintKey, _) {
+                  return CustomPaint(
+                    key: ValueKey('paint_$repaintKey'),
+                    size: Size.infinite,
+                    isComplex: true,
+                    willChange: true,
+                    // Use ABSOLUTE time mapping: pass timescale so painters map
+                    // time 0 to leftOffset and time=timescale to width-rightPadding.
+                    // The canvas width is contentWidth (zoomed), so waveforms scale correctly.
+                    // ScrollView handles clipping to show the visible portion.
+                    painter: sigType == SignalType.hexadecimal
+                      ? WaveformHexaValue(data, visibleTimeRange, startTime,
+                        leftOffset: leftOffset,
+                        viewportWidth: viewportWidth,
+                        scrollOffset: scrollOffset,
+                        timescale: widget.timescale,
+                        repaint: _repaintNotifier)
+                      : WaveformBinary(data, visibleTimeRange, startTime,
+                        leftOffset: leftOffset,
+                        viewportWidth: viewportWidth,
+                        scrollOffset: scrollOffset,
+                        timescale: widget.timescale,
+                        repaint: _repaintNotifier),
+                  );
+                },
+              ),
           ),
         );
       },

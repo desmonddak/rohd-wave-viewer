@@ -19,7 +19,13 @@ class ModuleStructureRepository {
 
   /// The [ModuleStructureApi] instance used to retrieve the data.
   final ModuleStructureApi _moduleStructureApi;
-
+  /// Optional future that completes when the underlying API is ready.
+  ///
+  /// On web, the Wellen WASM may need to finish loading the waveform bytes
+  /// before calls to the underlying API succeed. Passing a readiness future
+  /// allows repository methods to wait for that event. Tests and native
+  /// usage may leave this null.
+  final Future<void>? _apiReady;
   /// A cache of signals by their IDs for quick lookup when appending data.
   final Map<String, Signal> _signalCache = {};
 
@@ -28,7 +34,16 @@ class ModuleStructureRepository {
   /// Requires [moduleStructureApi] as a parameter.
   ModuleStructureRepository({
     required ModuleStructureApi moduleStructureApi,
-  }) : _moduleStructureApi = moduleStructureApi;
+    Future<void>? apiReady,
+  }) : _moduleStructureApi = moduleStructureApi,
+       _apiReady = apiReady;
+
+  /// Internal helper to wait for API readiness if provided.
+  Future<void> _ensureReady() async {
+    if (_apiReady != null) {
+      await _apiReady;
+    }
+  }
 
   void selectModule(Module module) {
     _selectedModule = module;
@@ -38,6 +53,7 @@ class ModuleStructureRepository {
   ///
   /// Returns a [Future] that completes with the [ModuleStructure].
   Future<ModuleStructure> getModuleStructure() async {
+    await _ensureReady();
     final structure = await _moduleStructureApi.getModuleStructure();
     _buildSignalCache(structure.modules);
     return structure;
@@ -50,6 +66,7 @@ class ModuleStructureRepository {
   ///
   /// Returns a [Future] that completes with the [ModuleStructure].
   Future<ModuleStructure> getModuleStructureOnly() async {
+    await _ensureReady();
     final structure = await _moduleStructureApi.getModuleStructureOnly();
     _buildSignalCache(structure.modules);
     return structure;
@@ -66,11 +83,14 @@ class ModuleStructureRepository {
     int? startTime,
     int? endTime,
   }) =>
-      _moduleStructureApi.getWaveformData(
-        signalIds: signalIds,
-        startTime: startTime,
-        endTime: endTime,
-      );
+      () async {
+        await _ensureReady();
+        return _moduleStructureApi.getWaveformData(
+          signalIds: signalIds,
+          startTime: startTime,
+          endTime: endTime,
+        );
+      }();
 
   /// Loads waveform data for specific signals and appends it to the cached signals.
   ///

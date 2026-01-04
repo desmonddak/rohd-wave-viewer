@@ -12,7 +12,22 @@ echo "=== ROHD Wave Viewer Build Script ==="
 # Check for required tools
 command -v flutter >/dev/null 2>&1 || { echo "Error: flutter not found"; exit 1; }
 command -v cargo >/dev/null 2>&1 || { echo "Error: cargo not found"; exit 1; }
-command -v wasm-pack >/dev/null 2>&1 || { echo "Error: wasm-pack not found. Install with: cargo install wasm-pack"; exit 1; }
+# Ensure cargo bin directory is on PATH so installed tools like wasm-pack are found
+export PATH="${HOME}/.cargo/bin:${PATH}"
+
+# Check for wasm-pack; attempt to install it automatically if missing
+if ! command -v wasm-pack >/dev/null 2>&1; then
+    echo "wasm-pack not found. Attempting to install via 'cargo install wasm-pack'..."
+    if command -v cargo >/dev/null 2>&1; then
+        cargo install wasm-pack || {
+            echo "Automatic install of wasm-pack failed. Please install manually: cargo install wasm-pack";
+            exit 1;
+        }
+    else
+        echo "Error: cargo not found. Cannot install wasm-pack. Please install Rust and cargo first.";
+        exit 1;
+    fi
+fi
 
 # Ensure Rust nightly and wasm32 target are available
 echo "Checking Rust toolchain..."

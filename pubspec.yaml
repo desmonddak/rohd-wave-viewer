@@ -8,11 +8,12 @@ issue_tracker: https://github.com/intel/rohd-wave-viewer/issues
 publish_to: none
 
 environment:
-  sdk: '>=3.3.0 <4.0.0'
+  sdk: '>=3.4.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
+  web: ^1.0.0
   devtools_app_shared: ^0.4.0
   cupertino_icons: ^1.0.6
   flutter_fancy_tree_view: ^1.4.1

@@ -14,7 +14,12 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Register custom editor for .vcd files
   const provider = new VcdCustomEditorProvider(context);
-  context.subscriptions.push(vscode.window.registerCustomEditorProvider('rohdWaveViewer.vcd', provider, { supportsMultipleEditorsPerDocument: false }));
+  context.subscriptions.push(vscode.window.registerCustomEditorProvider('rohdWaveViewer.vcd', provider, { 
+    supportsMultipleEditorsPerDocument: false,
+    webviewOptions: {
+      retainContextWhenHidden: true  // Keep WebView alive when hidden to prevent rendering issues
+    }
+  }));
 }
 
 function openStandalone(context: vscode.ExtensionContext) {
@@ -25,7 +30,8 @@ function openStandalone(context: vscode.ExtensionContext) {
     vscode.ViewColumn.One,
     {
       enableScripts: true,
-      localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')]
+      localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')],
+      retainContextWhenHidden: true  // Keep WebView alive when hidden to prevent rendering issues
     }
   );
 
@@ -46,6 +52,10 @@ function openStandalone(context: vscode.ExtensionContext) {
     output.appendLine(`webview -> extension message: ${JSON.stringify(msg)}`);
     if (msg && msg.command === 'ping') {
       panel.webview.postMessage({ reply: 'pong' });
+    }
+    // Handle repaint request - echo back to webview to force compositor update
+    if (msg && msg.type === 'requestRepaint') {
+      panel.webview.postMessage({ type: 'repaintAck', timestamp: Date.now() });
     }
   });
 }
@@ -104,6 +114,12 @@ class VcdCustomEditorProvider implements vscode.CustomTextEditorProvider {
         edit.replace(document.uri, new vscode.Range(0,0,document.lineCount,0), msg.text);
         await vscode.workspace.applyEdit(edit);
         await document.save();
+      }
+      // Handle repaint request - echo back to webview to force compositor update
+      if (msg && msg.type === 'requestRepaint') {
+        // Immediately send a message back to the webview
+        // This round-trip through the extension host may wake up the compositor
+        webviewPanel.webview.postMessage({ type: 'repaintAck', timestamp: Date.now() });
       }
     });
 
@@ -174,6 +190,31 @@ function transformHtml(html: string, webview: vscode.Webview, context: vscode.Ex
   window.addEventListener('message', (e) => {
     const msg = e.data;
     console.log('[embedShim] Received message:', msg?.type);
+    
+    // Handle repaintAck from extension - this round-trip should wake up compositor
+    if (msg && msg.type === 'repaintAck') {
+      console.log('[embedShim] Got repaintAck, forcing DOM update');
+      // Do a visible DOM change to try to wake up the compositor
+      document.body.style.opacity = '0.9999';
+      requestAnimationFrame(function() {
+        document.body.style.opacity = '1';
+        // Also dispatch a pointer event to simulate mouse movement
+        try {
+          var canvas = document.querySelector('canvas');
+          if (canvas) {
+            var rect = canvas.getBoundingClientRect();
+            var evt = new PointerEvent('pointermove', {
+              bubbles: true,
+              clientX: rect.left + rect.width / 2,
+              clientY: rect.top + rect.height / 2,
+              pointerType: 'mouse'
+            });
+            canvas.dispatchEvent(evt);
+          }
+        } catch(e) {}
+      });
+    }
+    
     if (window.__rohdMessageCallback) {
       window.__rohdMessageCallback(msg);
     }

@@ -116,6 +116,7 @@ void main() async {
     App(
       moduleStructureRepository: ModuleStructureRepository(
         moduleStructureApi: webApi.api,
+        apiReady: webApi.loaded,
       ),
     ),
   );

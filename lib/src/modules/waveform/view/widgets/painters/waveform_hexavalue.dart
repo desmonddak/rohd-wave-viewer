@@ -16,7 +16,9 @@ class WaveformHexaValue extends Waveform {
       {super.leftOffset = waveformLeftOffset,
       super.viewportWidth = 0.0,
       super.scrollOffset = 0.0,
-      super.timescale = 0});
+      super.timescale = 0,
+      Listenable? repaint})
+      : super(repaint: repaint);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -95,5 +97,14 @@ class WaveformHexaValue extends Waveform {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant WaveformHexaValue oldDelegate) {
+    // Repaint if any rendering parameters have changed
+    return oldDelegate.waveform != waveform ||
+           oldDelegate.finalTime != finalTime ||
+           oldDelegate.startTime != startTime ||
+           oldDelegate.leftOffset != leftOffset ||
+           oldDelegate.viewportWidth != viewportWidth ||
+           oldDelegate.scrollOffset != scrollOffset ||
+           oldDelegate.timescale != timescale;
+  }
 }

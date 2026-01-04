@@ -17,6 +17,22 @@ import 'package:rohd_wave_viewer/src/modules/waveform/bloc/waveform_module_bloc.
 import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/timescale.dart';
 import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/waveform_background.dart';
 import 'package:rohd_wave_viewer/src/const/const.dart';
+import 'package:rohd_wave_viewer/embed.dart';
+import 'dart:convert';
+import 'dart:js_interop';
+import 'package:web/web.dart' as web;
+
+// JS binding to call the force repaint function defined in index.html
+@JS('window.rohdForceRepaint')
+external void _jsRohdForceRepaint();
+
+void _callJsForceRepaint() {
+  try {
+    _jsRohdForceRepaint();
+  } catch (e) {
+    debugPrint('[WaveformPanel] JS force repaint error: $e');
+  }
+}
 
 class WaveformPanel extends StatefulWidget {
   final ScrollController? verticalScrollController;
@@ -27,7 +43,9 @@ class WaveformPanel extends StatefulWidget {
   State<WaveformPanel> createState() => _WaveformPanelState();
 }
 
-class _WaveformPanelState extends State<WaveformPanel> {
+class _WaveformPanelState extends State<WaveformPanel> with SingleTickerProviderStateMixin {
+  // Key to access the WaveformBackgroundState so we can force repaints
+  final GlobalKey _backgroundKey = GlobalKey();
   double _zoomLevel = 1.0;
   double? _lastActualWidth;
   final ScrollController _horizontalScrollController = ScrollController();
@@ -52,6 +70,9 @@ class _WaveformPanelState extends State<WaveformPanel> {
   // Ctrl+drag panning can take precedence. Toggled on pointer down when
   // Control key is held.
   bool _suppressScrollPhysics = false;
+  
+  // Counter to force multiple frame repaints after zoom (helps with embedded webviews)
+  int _forceRepaintFrames = 0;
 
   @override
   void initState() {
@@ -67,6 +88,91 @@ class _WaveformPanelState extends State<WaveformPanel> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _focusNode.requestFocus();
     });
+
+      // Listen for messages posted by the hosting page (index.html). We expect
+      // messages with `{ rohdCtrlWheel: true, deltaY }` when the page detects a
+      // Ctrl+wheel. This is a reliable fallback when Flutter's RawKeyboard state
+      // is not reporting modifiers inside VS Code WebView.
+      try {
+        web.window.addEventListener('message', _onWindowMessage.toJS);
+      } catch (e) {
+        // ignore on non-web platforms
+      }
+  }
+
+  void _onWindowMessage(web.MessageEvent event) {
+    try {
+      final rawData = event.data;
+      if (rawData == null) return;
+
+      // Try to convert JS object to Dart Map
+      Map<String, dynamic>? data;
+      
+      // If the page sent a JSON string, try to parse it.
+      if (rawData.isA<JSString>()) {
+        try {
+          data = json.decode((rawData as JSString).toDart) as Map<String, dynamic>?;
+        } catch (_) {
+          return; // not JSON we understand
+        }
+      } else if (rawData.isA<JSObject>()) {
+        // Convert JSObject to Dart Map via dartify
+        final dartified = (rawData as JSObject).dartify();
+        if (dartified is Map) {
+          data = Map<String, dynamic>.from(dartified);
+        }
+      }
+      
+      if (data == null) return;
+
+      final source = data['source']?.toString();
+      final mtype = data['type']?.toString();
+
+      // Lightweight debug: log unexpected messages to help diagnose host noise
+      if (source == null || mtype == null) {
+        debugPrint('[WaveformPanel] host message ignored (no source/type): ${data.runtimeType}');
+        return;
+      }
+
+      if (source == 'rohd_wave_viewer' && mtype == 'shift_wheel') {
+        // Extract deltaY and clientX from the Map
+        num deltaY = 0;
+        num? clientX;
+        try {
+          deltaY = (data['deltaY'] is num) ? data['deltaY'] as num : 0;
+          clientX = (data['clientX'] is num) ? data['clientX'] as num : null;
+        } catch (_) {}
+
+        debugPrint('[WaveformPanel] shift_wheel received deltaY=$deltaY clientX=$clientX');
+
+        // Immediately call JS force repaint before processing
+        _callJsForceRepaint();
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          
+          // Ensure focus is restored - Ctrl key might steal focus
+          if (!_focusNode.hasFocus) {
+            _focusNode.requestFocus();
+          }
+          
+          final RenderBox box = context.findRenderObject() as RenderBox;
+          final focalX = (clientX != null) ? box.globalToLocal(Offset(clientX.toDouble(), 0)).dx : box.size.width / 2.0;
+          if (deltaY > 0) {
+            _zoomWithPreservedPosition(1.0 / 1.5, focalViewportX: focalX);
+          } else if (deltaY < 0) {
+            _zoomWithPreservedPosition(1.5, focalViewportX: focalX);
+          }
+          
+          // Force repaint after zoom
+          _callJsForceRepaint();
+        });
+      } else {
+        // ignore other message types
+      }
+    } catch (e) {
+      // ignore parsing errors
+    }
   }
 
   void _onHorizontalScroll() {
@@ -101,6 +207,31 @@ class _WaveformPanelState extends State<WaveformPanel> {
 
   void _zoomOut() {
     _zoomWithPreservedPosition(1.0 / 1.5);
+  }
+
+  /// Force multiple frame updates to ensure the compositor presents the frame.
+  /// This is necessary in embedded webviews where single frame requests may be deferred.
+  void _forceMultipleFrameUpdates([int frames = 5]) {
+    // Immediately call the JS force repaint before scheduling frames
+    _callJsForceRepaint();
+    _forceRepaintFrames = frames;
+    _scheduleNextForceFrame();
+  }
+
+  void _scheduleNextForceFrame() {
+    if (_forceRepaintFrames <= 0 || !mounted) return;
+    _forceRepaintFrames--;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {}); // Trigger a rebuild
+      // Call JS force repaint on each frame
+      _callJsForceRepaint();
+      try {
+        final bgState = _backgroundKey.currentState as dynamic;
+        bgState?.forceRepaint?.call();
+      } catch (_) {}
+      _scheduleNextForceFrame();
+    });
   }
 
   void _zoomWithPreservedPosition(double factor, {double? focalViewportX}) {
@@ -157,7 +288,15 @@ class _WaveformPanelState extends State<WaveformPanel> {
             (scrollFraction * newMaxExtent).clamp(0.0, newMaxExtent);
         try {
           _trackedScrollOffset = finalNewOffset;
-          _horizontalScrollController.jumpTo(finalNewOffset);
+          // Use animateTo with very short duration instead of jumpTo
+          // This triggers the animation frame cycle which helps with WebView repaint
+          _horizontalScrollController.animateTo(
+            finalNewOffset,
+            duration: const Duration(milliseconds: 1),
+            curve: Curves.linear,
+          );
+          // Force multiple frame updates to ensure repaint in embedded webviews
+          _forceMultipleFrameUpdates();
         } catch (_) {}
         return;
       }
@@ -180,7 +319,15 @@ class _WaveformPanelState extends State<WaveformPanel> {
 
       try {
         _trackedScrollOffset = finalNewOffset;
-        _horizontalScrollController.jumpTo(finalNewOffset);
+        // Use animateTo with very short duration instead of jumpTo
+        // This triggers the animation frame cycle which helps with WebView repaint
+        _horizontalScrollController.animateTo(
+          finalNewOffset,
+          duration: const Duration(milliseconds: 1),
+          curve: Curves.linear,
+        );
+        // Force multiple frame updates to ensure repaint in embedded webviews
+        _forceMultipleFrameUpdates();
       } catch (_) {}
     });
   }
@@ -426,28 +573,31 @@ class _WaveformPanelState extends State<WaveformPanel> {
 
   void _handleScroll(PointerSignalEvent event, BuildContext context) {
     if (event is PointerScrollEvent) {
-      // If Control is held: zoom (existing behavior). Otherwise, use
+      // If Shift is held: zoom (existing behavior). Otherwise, use
       // mouse wheel to pan horizontally (scroll up -> pan left, scroll down -> pan right).
-      final bool ctrlPressed =
-          _pressedKeys.contains(LogicalKeyboardKey.controlLeft) ||
-              _pressedKeys.contains(LogicalKeyboardKey.controlRight);
+      final bool shiftPressed = _isShiftPressed();
 
       final scrollDelta = event.scrollDelta.dy;
+
+      // Debug logging to confirm events reach Flutter
+      try {
+        debugPrint('[WaveformPanel] PointerScrollEvent deltaY=$scrollDelta shift=$shiftPressed');
+      } catch (_) {}
 
       // Determine mouse position relative to viewport (used for zoom focal point)
       final RenderBox box = context.findRenderObject() as RenderBox;
       final local = box.globalToLocal(event.position);
       final focalX = local.dx; // viewport-local X
 
-      if (ctrlPressed) {
-        // Ctrl+wheel = zoom in/out
+      if (shiftPressed) {
+        // Shift+wheel = zoom in/out
         if (scrollDelta > 0) {
           _zoomWithPreservedPosition(1.0 / 1.5, focalViewportX: focalX);
         } else if (scrollDelta < 0) {
           _zoomWithPreservedPosition(1.5, focalViewportX: focalX);
         }
       } else {
-        // Wheel without Ctrl -> horizontal pan. Use a pan fraction so
+        // Wheel without Shift -> horizontal pan. Use a pan fraction so
         // the amount is intuitive regardless of viewport size.
         try {
           if (!_horizontalScrollController.hasClients) return;
@@ -471,6 +621,32 @@ class _WaveformPanelState extends State<WaveformPanel> {
         }
       }
     }
+  }
+
+  /// Returns true if either Shift key is currently pressed according to
+  /// the platform keyboard state. This is more reliable for pointer event
+  /// handling than local KeyDown/KeyUp tracking which can miss events.
+  bool _isShiftPressed() {
+    final keys = HardwareKeyboard.instance.logicalKeysPressed;
+    final bool rawHas = keys.contains(LogicalKeyboardKey.shiftLeft) ||
+        keys.contains(LogicalKeyboardKey.shiftRight);
+    if (rawHas) return true;
+
+    // Fallback: consult JS tracker if available (useful inside VS Code WebView
+    // where modifier key events may sometimes be intercepted by the host).
+    try {
+      return isShiftDownFromJs();
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Returns true if either Control key is currently pressed.
+  /// Used for Ctrl+drag panning.
+  bool _isCtrlPressed() {
+    final keys = HardwareKeyboard.instance.logicalKeysPressed;
+    return keys.contains(LogicalKeyboardKey.controlLeft) ||
+        keys.contains(LogicalKeyboardKey.controlRight);
   }
 
   // Custom scroll behavior that disables mouse wheel scrolling
@@ -564,12 +740,9 @@ class _WaveformPanelState extends State<WaveformPanel> {
                           onPointerDown: (event) {
                             // When the user presses down while holding Ctrl, suppress
                             // the default scroll physics so our custom onPan handlers
-                            // can manage panning. The `_pressedKeys` set is updated
-                            // via keyboard events.
-                            final bool ctrlPressed = _pressedKeys
-                                    .contains(LogicalKeyboardKey.controlLeft) ||
-                                _pressedKeys
-                                    .contains(LogicalKeyboardKey.controlRight);
+                            // can manage panning. We check the current keyboard
+                            // state directly to be resilient to missed key events.
+                            final bool ctrlPressed = _isCtrlPressed();
                             if (ctrlPressed && !_suppressScrollPhysics) {
                               setState(() {
                                 _suppressScrollPhysics = true;
@@ -614,11 +787,7 @@ class _WaveformPanelState extends State<WaveformPanel> {
                                     onPanStart: (details) {
                                       _focusNode.requestFocus();
                                       // Only start mouse panning when Control key is held.
-                                      final bool ctrlPressed = _pressedKeys
-                                              .contains(LogicalKeyboardKey
-                                                  .controlLeft) ||
-                                          _pressedKeys.contains(
-                                              LogicalKeyboardKey.controlRight);
+                                      final bool ctrlPressed = _isCtrlPressed();
                                       if (ctrlPressed) {
                                         setState(() {
                                           _isMousePanning = true;
@@ -678,9 +847,9 @@ class _WaveformPanelState extends State<WaveformPanel> {
                                       height: screenHeight -
                                           50, // Subtract timescale height
                                       child: WaveformBackground(
-                                        // Key forces rebuild when zoom or screen width changes
-                                        key: ValueKey(
-                                            'waveform_${actualWidth}_$_zoomLevel'),
+                                        // Key uses actual width only so the background State
+                                        // is preserved when `_zoomLevel` changes.
+                                        key: _backgroundKey,
                                         timescale: timescale,
                                         verticalScrollController:
                                             _verticalScrollController,
@@ -688,13 +857,7 @@ class _WaveformPanelState extends State<WaveformPanel> {
                                         horizontalScrollController:
                                             _horizontalScrollController,
                                         screenWidth: actualWidth,
-                                        isCtrlPressed: () =>
-                                            _pressedKeys.contains(
-                                                LogicalKeyboardKey
-                                                    .controlLeft) ||
-                                            _pressedKeys.contains(
-                                                LogicalKeyboardKey
-                                                    .controlRight),
+                                      isCtrlPressed: _isCtrlPressed,
                                       ),
                                     ),
                                   ),
