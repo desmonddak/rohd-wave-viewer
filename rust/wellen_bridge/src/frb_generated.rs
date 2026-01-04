@@ -46,170 +46,145 @@ flutter_rust_bridge::frb_generated_default_handler!();
 // Section: wire_funcs
 
 fn wire__crate__api__get_all_timestamps_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "get_all_timestamps",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
         move || {
-            move |context| {
-                transform_result_dco::<_, _, String>((move || {
-                    let output_ok = crate::api::get_all_timestamps()?;
-                    Ok(output_ok)
-                })())
-            }
+            transform_result_dco::<_, _, String>((move || {
+                let output_ok = crate::api::get_all_timestamps()?;
+                Ok(output_ok)
+            })())
         },
     )
 }
 fn wire__crate__api__get_max_timestamp_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "get_max_timestamp",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
         move || {
-            move |context| {
-                transform_result_dco::<_, _, String>((move || {
-                    let output_ok = crate::api::get_max_timestamp()?;
-                    Ok(output_ok)
-                })())
-            }
+            transform_result_dco::<_, _, String>((move || {
+                let output_ok = crate::api::get_max_timestamp()?;
+                Ok(output_ok)
+            })())
         },
     )
 }
 fn wire__crate__api__get_waveform_data_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
     signal_ids: impl CstDecode<Vec<String>>,
     start_time: impl CstDecode<Option<u64>>,
     end_time: impl CstDecode<Option<u64>>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "get_waveform_data",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
         move || {
             let api_signal_ids = signal_ids.cst_decode();
             let api_start_time = start_time.cst_decode();
             let api_end_time = end_time.cst_decode();
-            move |context| {
-                transform_result_dco::<_, _, String>((move || {
-                    let output_ok = crate::api::get_waveform_data(
-                        api_signal_ids,
-                        api_start_time,
-                        api_end_time,
-                    )?;
-                    Ok(output_ok)
-                })())
-            }
+            transform_result_dco::<_, _, String>((move || {
+                let output_ok =
+                    crate::api::get_waveform_data(api_signal_ids, api_start_time, api_end_time)?;
+                Ok(output_ok)
+            })())
         },
     )
 }
 fn wire__crate__api__get_waveform_structure_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "get_waveform_structure",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
         move || {
-            move |context| {
-                transform_result_dco::<_, _, String>((move || {
-                    let output_ok = crate::api::get_waveform_structure()?;
-                    Ok(output_ok)
-                })())
-            }
+            transform_result_dco::<_, _, String>((move || {
+                let output_ok = crate::api::get_waveform_structure()?;
+                Ok(output_ok)
+            })())
         },
     )
 }
 fn wire__crate__api__is_waveform_loaded_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "is_waveform_loaded",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
         move || {
-            move |context| {
-                transform_result_dco::<_, _, ()>((move || {
-                    let output_ok = Result::<_, ()>::Ok(crate::api::is_waveform_loaded())?;
-                    Ok(output_ok)
-                })())
-            }
+            transform_result_dco::<_, _, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(crate::api::is_waveform_loaded())?;
+                Ok(output_ok)
+            })())
         },
     )
 }
 fn wire__crate__api__load_waveform_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    file_path: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+    _file_path: impl CstDecode<String>,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "load_waveform",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
         move || {
-            let api_file_path = file_path.cst_decode();
-            move |context| {
-                transform_result_dco::<_, _, String>((move || {
-                    let output_ok = crate::api::load_waveform(api_file_path)?;
-                    Ok(output_ok)
-                })())
-            }
+            let api__file_path = _file_path.cst_decode();
+            transform_result_dco::<_, _, String>((move || {
+                let output_ok = crate::api::load_waveform(api__file_path)?;
+                Ok(output_ok)
+            })())
         },
     )
 }
 fn wire__crate__api__load_waveform_from_bytes_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
     bytes: impl CstDecode<Vec<u8>>,
     file_name: impl CstDecode<Option<String>>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "load_waveform_from_bytes",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
         move || {
             let api_bytes = bytes.cst_decode();
             let api_file_name = file_name.cst_decode();
-            move |context| {
-                transform_result_dco::<_, _, String>((move || {
-                    let output_ok = crate::api::load_waveform_from_bytes(api_bytes, api_file_name)?;
-                    Ok(output_ok)
-                })())
-            }
+            transform_result_dco::<_, _, String>((move || {
+                let output_ok = crate::api::load_waveform_from_bytes(api_bytes, api_file_name)?;
+                Ok(output_ok)
+            })())
         },
     )
 }
-fn wire__crate__api__unload_waveform_impl(port_: flutter_rust_bridge::for_generated::MessagePort) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+fn wire__crate__api__unload_waveform_impl(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "unload_waveform",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
         move || {
-            move |context| {
-                transform_result_dco::<_, _, ()>((move || {
-                    let output_ok = Result::<_, ()>::Ok({
-                        crate::api::unload_waveform();
-                    })?;
-                    Ok(output_ok)
-                })())
-            }
+            transform_result_dco::<_, _, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok({
+                    crate::api::unload_waveform();
+                })?;
+                Ok(output_ok)
+            })())
         },
     )
 }
@@ -1114,55 +1089,57 @@ mod io {
     }
 
     #[no_mangle]
-    pub extern "C" fn frbgen_rohd_wellen_wire__crate__api__get_all_timestamps(port_: i64) {
-        wire__crate__api__get_all_timestamps_impl(port_)
+    pub extern "C" fn frbgen_rohd_wellen_wire__crate__api__get_all_timestamps(
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__get_all_timestamps_impl()
     }
 
     #[no_mangle]
-    pub extern "C" fn frbgen_rohd_wellen_wire__crate__api__get_max_timestamp(port_: i64) {
-        wire__crate__api__get_max_timestamp_impl(port_)
+    pub extern "C" fn frbgen_rohd_wellen_wire__crate__api__get_max_timestamp(
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__get_max_timestamp_impl()
     }
 
     #[no_mangle]
     pub extern "C" fn frbgen_rohd_wellen_wire__crate__api__get_waveform_data(
-        port_: i64,
         signal_ids: *mut wire_cst_list_String,
         start_time: *mut u64,
         end_time: *mut u64,
-    ) {
-        wire__crate__api__get_waveform_data_impl(port_, signal_ids, start_time, end_time)
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__get_waveform_data_impl(signal_ids, start_time, end_time)
     }
 
     #[no_mangle]
-    pub extern "C" fn frbgen_rohd_wellen_wire__crate__api__get_waveform_structure(port_: i64) {
-        wire__crate__api__get_waveform_structure_impl(port_)
+    pub extern "C" fn frbgen_rohd_wellen_wire__crate__api__get_waveform_structure(
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__get_waveform_structure_impl()
     }
 
     #[no_mangle]
-    pub extern "C" fn frbgen_rohd_wellen_wire__crate__api__is_waveform_loaded(port_: i64) {
-        wire__crate__api__is_waveform_loaded_impl(port_)
+    pub extern "C" fn frbgen_rohd_wellen_wire__crate__api__is_waveform_loaded(
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__is_waveform_loaded_impl()
     }
 
     #[no_mangle]
     pub extern "C" fn frbgen_rohd_wellen_wire__crate__api__load_waveform(
-        port_: i64,
-        file_path: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__load_waveform_impl(port_, file_path)
+        _file_path: *mut wire_cst_list_prim_u_8_strict,
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__load_waveform_impl(_file_path)
     }
 
     #[no_mangle]
     pub extern "C" fn frbgen_rohd_wellen_wire__crate__api__load_waveform_from_bytes(
-        port_: i64,
         bytes: *mut wire_cst_list_prim_u_8_loose,
         file_name: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__load_waveform_from_bytes_impl(port_, bytes, file_name)
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__load_waveform_from_bytes_impl(bytes, file_name)
     }
 
     #[no_mangle]
-    pub extern "C" fn frbgen_rohd_wellen_wire__crate__api__unload_waveform(port_: i64) {
-        wire__crate__api__unload_waveform_impl(port_)
+    pub extern "C" fn frbgen_rohd_wellen_wire__crate__api__unload_waveform(
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__unload_waveform_impl()
     }
 
     #[no_mangle]
@@ -1665,64 +1642,56 @@ mod web {
 
     #[wasm_bindgen]
     pub fn wire__crate__api__get_all_timestamps(
-        port_: flutter_rust_bridge::for_generated::MessagePort,
-    ) {
-        wire__crate__api__get_all_timestamps_impl(port_)
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__get_all_timestamps_impl()
     }
 
     #[wasm_bindgen]
     pub fn wire__crate__api__get_max_timestamp(
-        port_: flutter_rust_bridge::for_generated::MessagePort,
-    ) {
-        wire__crate__api__get_max_timestamp_impl(port_)
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__get_max_timestamp_impl()
     }
 
     #[wasm_bindgen]
     pub fn wire__crate__api__get_waveform_data(
-        port_: flutter_rust_bridge::for_generated::MessagePort,
         signal_ids: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
         start_time: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
         end_time: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
-    ) {
-        wire__crate__api__get_waveform_data_impl(port_, signal_ids, start_time, end_time)
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__get_waveform_data_impl(signal_ids, start_time, end_time)
     }
 
     #[wasm_bindgen]
     pub fn wire__crate__api__get_waveform_structure(
-        port_: flutter_rust_bridge::for_generated::MessagePort,
-    ) {
-        wire__crate__api__get_waveform_structure_impl(port_)
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__get_waveform_structure_impl()
     }
 
     #[wasm_bindgen]
     pub fn wire__crate__api__is_waveform_loaded(
-        port_: flutter_rust_bridge::for_generated::MessagePort,
-    ) {
-        wire__crate__api__is_waveform_loaded_impl(port_)
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__is_waveform_loaded_impl()
     }
 
     #[wasm_bindgen]
     pub fn wire__crate__api__load_waveform(
-        port_: flutter_rust_bridge::for_generated::MessagePort,
-        file_path: String,
-    ) {
-        wire__crate__api__load_waveform_impl(port_, file_path)
+        _file_path: String,
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__load_waveform_impl(_file_path)
     }
 
     #[wasm_bindgen]
     pub fn wire__crate__api__load_waveform_from_bytes(
-        port_: flutter_rust_bridge::for_generated::MessagePort,
         bytes: Box<[u8]>,
         file_name: Option<String>,
-    ) {
-        wire__crate__api__load_waveform_from_bytes_impl(port_, bytes, file_name)
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__load_waveform_from_bytes_impl(bytes, file_name)
     }
 
     #[wasm_bindgen]
     pub fn wire__crate__api__unload_waveform(
-        port_: flutter_rust_bridge::for_generated::MessagePort,
-    ) {
-        wire__crate__api__unload_waveform_impl(port_)
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__unload_waveform_impl()
     }
 }
 #[cfg(target_family = "wasm")]

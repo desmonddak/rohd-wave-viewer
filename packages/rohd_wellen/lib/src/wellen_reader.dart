@@ -75,7 +75,7 @@ class WellenReader {
   /// Throws [WellenException] if the file cannot be loaded.
   Future<MetaData> loadFile(String filePath) async {
     try {
-      final rustMetadata = await rust_api.loadWaveform(filePath: filePath);
+      final rustMetadata = rust_api.loadWaveform(filePath: filePath);
 
       _metadata = MetaData(
         source: rustMetadata.source,
@@ -111,7 +111,7 @@ class WellenReader {
     }
 
     try {
-      final rustStructure = await rust_api.getWaveformStructure();
+      final rustStructure = rust_api.getWaveformStructure();
 
       _structure = ModuleStructure(
         metadata: MetaData(
@@ -150,7 +150,7 @@ class WellenReader {
     }
 
     try {
-      final rustData = await rust_api.getWaveformData(
+      final rustData = rust_api.getWaveformData(
         signalIds: signalIds,
         startTime: startTime != null ? BigInt.from(startTime) : null,
         endTime: endTime != null ? BigInt.from(endTime) : null,
@@ -212,7 +212,7 @@ class WellenReader {
     }
 
     try {
-      final result = await rust_api.getMaxTimestamp();
+      final result = rust_api.getMaxTimestamp();
       return result?.toInt();
     } catch (e) {
       throw WellenException('Failed to get max timestamp: $e');
@@ -226,7 +226,7 @@ class WellenReader {
     }
 
     try {
-      final result = await rust_api.getAllTimestamps();
+      final result = rust_api.getAllTimestamps();
       return result.map((t) => t.toInt()).toList();
     } catch (e) {
       throw WellenException('Failed to get timestamps: $e');
@@ -236,7 +236,7 @@ class WellenReader {
   /// Close the reader and release resources.
   Future<void> close() async {
     if (_isLoaded) {
-      await rust_api.unloadWaveform();
+      rust_api.unloadWaveform();
       _isLoaded = false;
       _metadata = null;
       _structure = null;

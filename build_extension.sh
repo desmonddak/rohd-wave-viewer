@@ -1,0 +1,100 @@
+#!/bin/bash
+# Build script for ROHD Wave Viewer VS Code extension
+# This script builds the Flutter web app with WASM support and installs it as a VS Code extension.
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+echo "=== ROHD Wave Viewer Build Script ==="
+
+# Check for required tools
+command -v flutter >/dev/null 2>&1 || { echo "Error: flutter not found"; exit 1; }
+command -v cargo >/dev/null 2>&1 || { echo "Error: cargo not found"; exit 1; }
+command -v wasm-pack >/dev/null 2>&1 || { echo "Error: wasm-pack not found. Install with: cargo install wasm-pack"; exit 1; }
+
+# Ensure Rust nightly and wasm32 target are available
+echo "Checking Rust toolchain..."
+rustup toolchain list | grep -q nightly || rustup toolchain install nightly
+rustup target add wasm32-unknown-unknown --toolchain nightly 2>/dev/null || true
+rustup component add rust-src --toolchain nightly 2>/dev/null || true
+
+# Step 1: Build WASM with flutter_rust_bridge
+echo ""
+echo "=== Step 1: Building WASM bindings ==="
+echo "Generating Dart bindings from Rust API..."
+rustup run nightly flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml
+
+echo "Compiling Rust to WebAssembly (--target no-modules for VS Code webview)..."
+cd rust/wellen_bridge
+export PATH="${HOME}/.cargo/bin:${PATH}"
+rustup run nightly wasm-pack build --target no-modules --out-dir ../../web/pkg
+cd ../..
+echo "✓ WASM bindings built"
+
+# Step 2: Build Flutter web using web-specific entry point
+echo ""
+echo "=== Step 2: Building Flutter web app ==="
+echo "Building Flutter web with lib/main_web.dart (web-specific entry point)..."
+flutter build web --release --target lib/main_web.dart
+echo "✓ Flutter web app built"
+
+# Step 3: Fix flutter_bootstrap.js for webview compatibility
+echo ""
+echo "=== Step 3: Fixing flutter_bootstrap.js for webview ==="
+echo "Adding useLocalCanvasKit and removing service worker settings..."
+python3 fix_bootstrap.py
+echo "✓ flutter_bootstrap.js fixed"
+
+# Step 4: Copy WASM pkg to build output (if not already there)
+echo ""
+echo "=== Step 4: Ensuring WASM pkg is in build output ==="
+if [ -d "web/pkg" ]; then
+    echo "Copying WASM package to Flutter build output..."
+    rm -rf build/web/pkg
+    cp -r web/pkg build/web/
+    echo "✓ WASM package copied"
+else
+    echo "Error: web/pkg not found. WASM build may have failed."
+    exit 1
+fi
+
+# Step 5: Compile TypeScript extension
+echo ""
+echo "=== Step 5: Compiling VS Code extension ==="
+echo "Installing npm dependencies..."
+cd vscode-extension
+npm install
+echo "Compiling TypeScript to JavaScript..."
+npm run compile
+cd ..
+echo "✓ VS Code extension compiled"
+
+# Step 6: Install extension
+echo ""
+echo "=== Step 6: Installing VS Code extension ==="
+EXTENSION_DIR="$HOME/.vscode/extensions/local.rohd-wave-viewer-vscode-0.0.1"
+echo "Installing to: $EXTENSION_DIR"
+rm -rf "$EXTENSION_DIR"
+mkdir -p "$EXTENSION_DIR"
+
+# Copy extension files
+echo "Copying extension files..."
+cp -r vscode-ext-package/extension/* "$EXTENSION_DIR/"
+
+# Copy compiled extension.js
+echo "Copying compiled extension code..."
+cp vscode-extension/out/extension.js "$EXTENSION_DIR/out/"
+
+# Copy Flutter web build
+echo "Copying Flutter web app..."
+cp -r build/web "$EXTENSION_DIR/media/flutter_web"
+echo "✓ Extension installed"
+
+echo ""
+echo "=== Build Complete ==="
+echo "Extension installed to: $EXTENSION_DIR"
+echo ""
+echo "Please reload VS Code (Developer: Reload Window) to activate the extension."
+echo "Then open any .vcd file to view waveforms."

@@ -10,6 +10,8 @@
 import 'package:module_structure_api/module_structure_api.dart';
 import 'package:rohd_wellen/src/rust/api.dart' as rust;
 import 'package:rohd_wellen/src/rust/frb_generated.dart';
+import 'package:rohd_wellen/src/external_library_io.dart'
+    if (dart.library.js_interop) 'package:rohd_wellen/src/external_library_web.dart';
 
 /// Implementation of [ModuleStructureApi] using the Wellen library.
 ///
@@ -23,9 +25,14 @@ class WellenModuleStructureApi extends ModuleStructureApi {
   /// Initialize the Rust FFI library.
   ///
   /// This must be called once before using any WellenModuleStructureApi instances.
+  /// On web, the WASM must already be loaded via wasm_bindgen() before calling this.
   static Future<void> init() async {
     if (!_initialized) {
-      await RustLib.init();
+      // On web, pass an ExternalLibrary to skip WASM loading (already done via wasm_bindgen).
+      // On native, returns null to let flutter_rust_bridge load the library normally.
+      await RustLib.init(
+        externalLibrary: createPreloadedExternalLibrary(),
+      );
       _initialized = true;
     }
   }
@@ -38,10 +45,10 @@ class WellenModuleStructureApi extends ModuleStructureApi {
     await init();
     // Ask the Rust library to load the waveform file first so internal
     // WAVEFORM_STATE is populated. The generated API exposes `loadWaveform`.
-    await rust.loadWaveform(filePath: filePath);
+    rust.loadWaveform(filePath: filePath);
 
     // After loading, request the structure from Rust and cache it locally.
-    _cachedStructure = await rust.getWaveformStructure();
+    _cachedStructure = rust.getWaveformStructure();
     // Debug logging removed
     _isLoaded = true;
   }
@@ -93,14 +100,9 @@ class WellenModuleStructureApi extends ModuleStructureApi {
   /// [fileName] is optional and used for format detection hints.
   Future<void> loadBytes(List<int> bytes, {String? fileName}) async {
     await init();
-    // TODO: Uncomment when load_waveform_from_bytes is available in generated code
-    // await rust.loadWaveformFromBytes(bytes: bytes, fileName: fileName);
-    // For now, this is not implemented - use loadFile instead
-    throw UnimplementedError(
-      'loadBytes is not yet implemented. Use loadFile() for now.',
-    );
-    // _cachedStructure = await rust.getWaveformStructure();
-    // _isLoaded = true;
+    rust.loadWaveformFromBytes(bytes: bytes, fileName: fileName);
+    _cachedStructure = rust.getWaveformStructure();
+    _isLoaded = true;
   }
 
   @override
@@ -134,7 +136,7 @@ class WellenModuleStructureApi extends ModuleStructureApi {
       throw StateError('No waveform loaded. Call loadFile() first.');
     }
 
-    final rustWaveformData = await rust.getWaveformData(
+    final rustWaveformData = rust.getWaveformData(
       signalIds: signalIds,
       startTime: startTime != null ? BigInt.from(startTime) : null,
       endTime: endTime != null ? BigInt.from(endTime) : null,

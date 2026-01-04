@@ -71,29 +71,29 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
     stem: 'wellen_bridge',
-    ioDirectory: '../../rust/wellen_bridge/target/release/',
+    ioDirectory: 'rust/wellen_bridge/target/release/',
     webPrefix: 'pkg/',
   );
 }
 
 abstract class RustLibApi extends BaseApi {
-  Uint64List crateApiGetAllTimestamps();
+  Future<Uint64List> crateApiGetAllTimestamps();
 
-  BigInt? crateApiGetMaxTimestamp();
+  Future<BigInt?> crateApiGetMaxTimestamp();
 
-  List<SignalWaveformData> crateApiGetWaveformData(
+  Future<List<SignalWaveformData>> crateApiGetWaveformData(
       {required List<String> signalIds, BigInt? startTime, BigInt? endTime});
 
-  WaveformStructure crateApiGetWaveformStructure();
+  Future<WaveformStructure> crateApiGetWaveformStructure();
 
-  bool crateApiIsWaveformLoaded();
+  Future<bool> crateApiIsWaveformLoaded();
 
-  WaveformMetadata crateApiLoadWaveform({required String filePath});
+  Future<WaveformMetadata> crateApiLoadWaveform({required String filePath});
 
-  WaveformMetadata crateApiLoadWaveformFromBytes(
+  Future<WaveformMetadata> crateApiLoadWaveformFromBytes(
       {required List<int> bytes, String? fileName});
 
-  void crateApiUnloadWaveform();
+  Future<void> crateApiUnloadWaveform();
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -105,10 +105,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
-  Uint64List crateApiGetAllTimestamps() {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        return wire.wire__crate__api__get_all_timestamps();
+  Future<Uint64List> crateApiGetAllTimestamps() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        return wire.wire__crate__api__get_all_timestamps(port_);
       },
       codec: DcoCodec(
         decodeSuccessData: dco_decode_list_prim_u_64_strict,
@@ -126,10 +126,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  BigInt? crateApiGetMaxTimestamp() {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        return wire.wire__crate__api__get_max_timestamp();
+  Future<BigInt?> crateApiGetMaxTimestamp() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        return wire.wire__crate__api__get_max_timestamp(port_);
       },
       codec: DcoCodec(
         decodeSuccessData: dco_decode_opt_box_autoadd_u_64,
@@ -147,14 +147,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  List<SignalWaveformData> crateApiGetWaveformData(
+  Future<List<SignalWaveformData>> crateApiGetWaveformData(
       {required List<String> signalIds, BigInt? startTime, BigInt? endTime}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
         var arg0 = cst_encode_list_String(signalIds);
         var arg1 = cst_encode_opt_box_autoadd_u_64(startTime);
         var arg2 = cst_encode_opt_box_autoadd_u_64(endTime);
-        return wire.wire__crate__api__get_waveform_data(arg0, arg1, arg2);
+        return wire.wire__crate__api__get_waveform_data(
+            port_, arg0, arg1, arg2);
       },
       codec: DcoCodec(
         decodeSuccessData: dco_decode_list_signal_waveform_data,
@@ -172,10 +173,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  WaveformStructure crateApiGetWaveformStructure() {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        return wire.wire__crate__api__get_waveform_structure();
+  Future<WaveformStructure> crateApiGetWaveformStructure() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        return wire.wire__crate__api__get_waveform_structure(port_);
       },
       codec: DcoCodec(
         decodeSuccessData: dco_decode_waveform_structure,
@@ -194,10 +195,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  bool crateApiIsWaveformLoaded() {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        return wire.wire__crate__api__is_waveform_loaded();
+  Future<bool> crateApiIsWaveformLoaded() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        return wire.wire__crate__api__is_waveform_loaded(port_);
       },
       codec: DcoCodec(
         decodeSuccessData: dco_decode_bool,
@@ -215,11 +216,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  WaveformMetadata crateApiLoadWaveform({required String filePath}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
+  Future<WaveformMetadata> crateApiLoadWaveform({required String filePath}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
         var arg0 = cst_encode_String(filePath);
-        return wire.wire__crate__api__load_waveform(arg0);
+        return wire.wire__crate__api__load_waveform(port_, arg0);
       },
       codec: DcoCodec(
         decodeSuccessData: dco_decode_waveform_metadata,
@@ -237,13 +238,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  WaveformMetadata crateApiLoadWaveformFromBytes(
+  Future<WaveformMetadata> crateApiLoadWaveformFromBytes(
       {required List<int> bytes, String? fileName}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
         var arg0 = cst_encode_list_prim_u_8_loose(bytes);
         var arg1 = cst_encode_opt_String(fileName);
-        return wire.wire__crate__api__load_waveform_from_bytes(arg0, arg1);
+        return wire.wire__crate__api__load_waveform_from_bytes(
+            port_, arg0, arg1);
       },
       codec: DcoCodec(
         decodeSuccessData: dco_decode_waveform_metadata,
@@ -262,10 +264,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  void crateApiUnloadWaveform() {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        return wire.wire__crate__api__unload_waveform();
+  Future<void> crateApiUnloadWaveform() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        return wire.wire__crate__api__unload_waveform(port_);
       },
       codec: DcoCodec(
         decodeSuccessData: dco_decode_unit,

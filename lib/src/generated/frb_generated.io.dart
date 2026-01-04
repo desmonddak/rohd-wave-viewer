@@ -467,34 +467,42 @@ class RustLibWire implements BaseWire {
   late final _store_dart_post_cobject = _store_dart_post_cobjectPtr
       .asFunction<void Function(DartPostCObjectFnType)>();
 
-  WireSyncRust2DartDco wire__crate__api__get_all_timestamps() {
-    return _wire__crate__api__get_all_timestamps();
+  void wire__crate__api__get_all_timestamps(
+    int port_,
+  ) {
+    return _wire__crate__api__get_all_timestamps(
+      port_,
+    );
   }
 
   late final _wire__crate__api__get_all_timestampsPtr =
-      _lookup<ffi.NativeFunction<WireSyncRust2DartDco Function()>>(
-          'frbgen_rohd_wellen_wire__crate__api__get_all_timestamps');
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+          'frbgen_rohd_wave_viewer_wire__crate__api__get_all_timestamps');
   late final _wire__crate__api__get_all_timestamps =
-      _wire__crate__api__get_all_timestampsPtr
-          .asFunction<WireSyncRust2DartDco Function()>();
+      _wire__crate__api__get_all_timestampsPtr.asFunction<void Function(int)>();
 
-  WireSyncRust2DartDco wire__crate__api__get_max_timestamp() {
-    return _wire__crate__api__get_max_timestamp();
+  void wire__crate__api__get_max_timestamp(
+    int port_,
+  ) {
+    return _wire__crate__api__get_max_timestamp(
+      port_,
+    );
   }
 
   late final _wire__crate__api__get_max_timestampPtr =
-      _lookup<ffi.NativeFunction<WireSyncRust2DartDco Function()>>(
-          'frbgen_rohd_wellen_wire__crate__api__get_max_timestamp');
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+          'frbgen_rohd_wave_viewer_wire__crate__api__get_max_timestamp');
   late final _wire__crate__api__get_max_timestamp =
-      _wire__crate__api__get_max_timestampPtr
-          .asFunction<WireSyncRust2DartDco Function()>();
+      _wire__crate__api__get_max_timestampPtr.asFunction<void Function(int)>();
 
-  WireSyncRust2DartDco wire__crate__api__get_waveform_data(
+  void wire__crate__api__get_waveform_data(
+    int port_,
     ffi.Pointer<wire_cst_list_String> signal_ids,
     ffi.Pointer<ffi.Uint64> start_time,
     ffi.Pointer<ffi.Uint64> end_time,
   ) {
     return _wire__crate__api__get_waveform_data(
+      port_,
       signal_ids,
       start_time,
       end_time,
@@ -503,59 +511,69 @@ class RustLibWire implements BaseWire {
 
   late final _wire__crate__api__get_waveform_dataPtr = _lookup<
           ffi.NativeFunction<
-              WireSyncRust2DartDco Function(ffi.Pointer<wire_cst_list_String>,
+              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_cst_list_String>,
                   ffi.Pointer<ffi.Uint64>, ffi.Pointer<ffi.Uint64>)>>(
-      'frbgen_rohd_wellen_wire__crate__api__get_waveform_data');
+      'frbgen_rohd_wave_viewer_wire__crate__api__get_waveform_data');
   late final _wire__crate__api__get_waveform_data =
       _wire__crate__api__get_waveform_dataPtr.asFunction<
-          WireSyncRust2DartDco Function(ffi.Pointer<wire_cst_list_String>,
+          void Function(int, ffi.Pointer<wire_cst_list_String>,
               ffi.Pointer<ffi.Uint64>, ffi.Pointer<ffi.Uint64>)>();
 
-  WireSyncRust2DartDco wire__crate__api__get_waveform_structure() {
-    return _wire__crate__api__get_waveform_structure();
+  void wire__crate__api__get_waveform_structure(
+    int port_,
+  ) {
+    return _wire__crate__api__get_waveform_structure(
+      port_,
+    );
   }
 
   late final _wire__crate__api__get_waveform_structurePtr =
-      _lookup<ffi.NativeFunction<WireSyncRust2DartDco Function()>>(
-          'frbgen_rohd_wellen_wire__crate__api__get_waveform_structure');
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+          'frbgen_rohd_wave_viewer_wire__crate__api__get_waveform_structure');
   late final _wire__crate__api__get_waveform_structure =
       _wire__crate__api__get_waveform_structurePtr
-          .asFunction<WireSyncRust2DartDco Function()>();
+          .asFunction<void Function(int)>();
 
-  WireSyncRust2DartDco wire__crate__api__is_waveform_loaded() {
-    return _wire__crate__api__is_waveform_loaded();
+  void wire__crate__api__is_waveform_loaded(
+    int port_,
+  ) {
+    return _wire__crate__api__is_waveform_loaded(
+      port_,
+    );
   }
 
   late final _wire__crate__api__is_waveform_loadedPtr =
-      _lookup<ffi.NativeFunction<WireSyncRust2DartDco Function()>>(
-          'frbgen_rohd_wellen_wire__crate__api__is_waveform_loaded');
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+          'frbgen_rohd_wave_viewer_wire__crate__api__is_waveform_loaded');
   late final _wire__crate__api__is_waveform_loaded =
-      _wire__crate__api__is_waveform_loadedPtr
-          .asFunction<WireSyncRust2DartDco Function()>();
+      _wire__crate__api__is_waveform_loadedPtr.asFunction<void Function(int)>();
 
-  WireSyncRust2DartDco wire__crate__api__load_waveform(
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> _file_path,
+  void wire__crate__api__load_waveform(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> file_path,
   ) {
     return _wire__crate__api__load_waveform(
-      _file_path,
+      port_,
+      file_path,
     );
   }
 
   late final _wire__crate__api__load_waveformPtr = _lookup<
           ffi.NativeFunction<
-              WireSyncRust2DartDco Function(
-                  ffi.Pointer<wire_cst_list_prim_u_8_strict>)>>(
-      'frbgen_rohd_wellen_wire__crate__api__load_waveform');
+              ffi.Void Function(
+                  ffi.Int64, ffi.Pointer<wire_cst_list_prim_u_8_strict>)>>(
+      'frbgen_rohd_wave_viewer_wire__crate__api__load_waveform');
   late final _wire__crate__api__load_waveform =
       _wire__crate__api__load_waveformPtr.asFunction<
-          WireSyncRust2DartDco Function(
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>)>();
+          void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)>();
 
-  WireSyncRust2DartDco wire__crate__api__load_waveform_from_bytes(
+  void wire__crate__api__load_waveform_from_bytes(
+    int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_loose> bytes,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> file_name,
   ) {
     return _wire__crate__api__load_waveform_from_bytes(
+      port_,
       bytes,
       file_name,
     );
@@ -563,26 +581,29 @@ class RustLibWire implements BaseWire {
 
   late final _wire__crate__api__load_waveform_from_bytesPtr = _lookup<
           ffi.NativeFunction<
-              WireSyncRust2DartDco Function(
+              ffi.Void Function(
+                  ffi.Int64,
                   ffi.Pointer<wire_cst_list_prim_u_8_loose>,
                   ffi.Pointer<wire_cst_list_prim_u_8_strict>)>>(
-      'frbgen_rohd_wellen_wire__crate__api__load_waveform_from_bytes');
+      'frbgen_rohd_wave_viewer_wire__crate__api__load_waveform_from_bytes');
   late final _wire__crate__api__load_waveform_from_bytes =
       _wire__crate__api__load_waveform_from_bytesPtr.asFunction<
-          WireSyncRust2DartDco Function(
-              ffi.Pointer<wire_cst_list_prim_u_8_loose>,
+          void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_loose>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>)>();
 
-  WireSyncRust2DartDco wire__crate__api__unload_waveform() {
-    return _wire__crate__api__unload_waveform();
+  void wire__crate__api__unload_waveform(
+    int port_,
+  ) {
+    return _wire__crate__api__unload_waveform(
+      port_,
+    );
   }
 
   late final _wire__crate__api__unload_waveformPtr =
-      _lookup<ffi.NativeFunction<WireSyncRust2DartDco Function()>>(
-          'frbgen_rohd_wellen_wire__crate__api__unload_waveform');
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+          'frbgen_rohd_wave_viewer_wire__crate__api__unload_waveform');
   late final _wire__crate__api__unload_waveform =
-      _wire__crate__api__unload_waveformPtr
-          .asFunction<WireSyncRust2DartDco Function()>();
+      _wire__crate__api__unload_waveformPtr.asFunction<void Function(int)>();
 
   ffi.Pointer<ffi.Uint64> cst_new_box_autoadd_u_64(
     int value,
@@ -594,7 +615,7 @@ class RustLibWire implements BaseWire {
 
   late final _cst_new_box_autoadd_u_64Ptr =
       _lookup<ffi.NativeFunction<ffi.Pointer<ffi.Uint64> Function(ffi.Uint64)>>(
-          'frbgen_rohd_wellen_cst_new_box_autoadd_u_64');
+          'frbgen_rohd_wave_viewer_cst_new_box_autoadd_u_64');
   late final _cst_new_box_autoadd_u_64 = _cst_new_box_autoadd_u_64Ptr
       .asFunction<ffi.Pointer<ffi.Uint64> Function(int)>();
 
@@ -609,7 +630,7 @@ class RustLibWire implements BaseWire {
   late final _cst_new_list_StringPtr = _lookup<
       ffi.NativeFunction<
           ffi.Pointer<wire_cst_list_String> Function(
-              ffi.Int32)>>('frbgen_rohd_wellen_cst_new_list_String');
+              ffi.Int32)>>('frbgen_rohd_wave_viewer_cst_new_list_String');
   late final _cst_new_list_String = _cst_new_list_StringPtr
       .asFunction<ffi.Pointer<wire_cst_list_String> Function(int)>();
 
@@ -624,7 +645,7 @@ class RustLibWire implements BaseWire {
   late final _cst_new_list_module_nodePtr = _lookup<
       ffi.NativeFunction<
           ffi.Pointer<wire_cst_list_module_node> Function(
-              ffi.Int32)>>('frbgen_rohd_wellen_cst_new_list_module_node');
+              ffi.Int32)>>('frbgen_rohd_wave_viewer_cst_new_list_module_node');
   late final _cst_new_list_module_node = _cst_new_list_module_nodePtr
       .asFunction<ffi.Pointer<wire_cst_list_module_node> Function(int)>();
 
@@ -637,9 +658,9 @@ class RustLibWire implements BaseWire {
   }
 
   late final _cst_new_list_prim_u_64_strictPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Pointer<wire_cst_list_prim_u_64_strict> Function(
-              ffi.Int32)>>('frbgen_rohd_wellen_cst_new_list_prim_u_64_strict');
+          ffi.NativeFunction<
+              ffi.Pointer<wire_cst_list_prim_u_64_strict> Function(ffi.Int32)>>(
+      'frbgen_rohd_wave_viewer_cst_new_list_prim_u_64_strict');
   late final _cst_new_list_prim_u_64_strict = _cst_new_list_prim_u_64_strictPtr
       .asFunction<ffi.Pointer<wire_cst_list_prim_u_64_strict> Function(int)>();
 
@@ -652,9 +673,9 @@ class RustLibWire implements BaseWire {
   }
 
   late final _cst_new_list_prim_u_8_loosePtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Pointer<wire_cst_list_prim_u_8_loose> Function(
-              ffi.Int32)>>('frbgen_rohd_wellen_cst_new_list_prim_u_8_loose');
+          ffi.NativeFunction<
+              ffi.Pointer<wire_cst_list_prim_u_8_loose> Function(ffi.Int32)>>(
+      'frbgen_rohd_wave_viewer_cst_new_list_prim_u_8_loose');
   late final _cst_new_list_prim_u_8_loose = _cst_new_list_prim_u_8_loosePtr
       .asFunction<ffi.Pointer<wire_cst_list_prim_u_8_loose> Function(int)>();
 
@@ -667,9 +688,9 @@ class RustLibWire implements BaseWire {
   }
 
   late final _cst_new_list_prim_u_8_strictPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Pointer<wire_cst_list_prim_u_8_strict> Function(
-              ffi.Int32)>>('frbgen_rohd_wellen_cst_new_list_prim_u_8_strict');
+          ffi.NativeFunction<
+              ffi.Pointer<wire_cst_list_prim_u_8_strict> Function(ffi.Int32)>>(
+      'frbgen_rohd_wave_viewer_cst_new_list_prim_u_8_strict');
   late final _cst_new_list_prim_u_8_strict = _cst_new_list_prim_u_8_strictPtr
       .asFunction<ffi.Pointer<wire_cst_list_prim_u_8_strict> Function(int)>();
 
@@ -684,7 +705,7 @@ class RustLibWire implements BaseWire {
   late final _cst_new_list_signal_infoPtr = _lookup<
       ffi.NativeFunction<
           ffi.Pointer<wire_cst_list_signal_info> Function(
-              ffi.Int32)>>('frbgen_rohd_wellen_cst_new_list_signal_info');
+              ffi.Int32)>>('frbgen_rohd_wave_viewer_cst_new_list_signal_info');
   late final _cst_new_list_signal_info = _cst_new_list_signal_infoPtr
       .asFunction<ffi.Pointer<wire_cst_list_signal_info> Function(int)>();
 
@@ -701,7 +722,7 @@ class RustLibWire implements BaseWire {
           ffi.NativeFunction<
               ffi.Pointer<wire_cst_list_signal_waveform_data> Function(
                   ffi.Int32)>>(
-      'frbgen_rohd_wellen_cst_new_list_signal_waveform_data');
+      'frbgen_rohd_wave_viewer_cst_new_list_signal_waveform_data');
   late final _cst_new_list_signal_waveform_data =
       _cst_new_list_signal_waveform_dataPtr.asFunction<
           ffi.Pointer<wire_cst_list_signal_waveform_data> Function(int)>();
@@ -719,7 +740,7 @@ class RustLibWire implements BaseWire {
           ffi.NativeFunction<
               ffi.Pointer<wire_cst_list_waveform_data_point> Function(
                   ffi.Int32)>>(
-      'frbgen_rohd_wellen_cst_new_list_waveform_data_point');
+      'frbgen_rohd_wave_viewer_cst_new_list_waveform_data_point');
   late final _cst_new_list_waveform_data_point =
       _cst_new_list_waveform_data_pointPtr.asFunction<
           ffi.Pointer<wire_cst_list_waveform_data_point> Function(int)>();

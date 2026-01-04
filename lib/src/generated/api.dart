@@ -6,7 +6,7 @@
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `create_metadata`, `format_signal_value`, `format_to_string`, `load_waveform_native`, `scope_type_to_string`, `timescale_unit_to_string`, `var_type_to_string`
+// These functions are ignored because they are not marked as `pub`: `create_metadata`, `format_signal_value`, `format_to_string`, `scope_type_to_string`, `timescale_unit_to_string`, `var_type_to_string`
 // These types are ignored because they are not used by any `pub` functions: `ScopeInfo`, `WAVEFORM_STATE`, `WaveformState`, `WellenError`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `deref`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `initialize`
 
@@ -18,7 +18,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 ///
 /// Note: This function is only available on native platforms (not WASM).
 /// For web/WASM, use `load_waveform_from_bytes` instead.
-WaveformMetadata loadWaveform({required String filePath}) =>
+Future<WaveformMetadata> loadWaveform({required String filePath}) =>
     RustLib.instance.api.crateApiLoadWaveform(filePath: filePath);
 
 /// Load a waveform from bytes (VCD, FST, or GHW)
@@ -31,7 +31,7 @@ WaveformMetadata loadWaveform({required String filePath}) =>
 /// # Arguments
 /// * `bytes` - The waveform file contents as bytes
 /// * `file_name` - Optional filename hint for format detection and metadata
-WaveformMetadata loadWaveformFromBytes(
+Future<WaveformMetadata> loadWaveformFromBytes(
         {required List<int> bytes, String? fileName}) =>
     RustLib.instance.api
         .crateApiLoadWaveformFromBytes(bytes: bytes, fileName: fileName);
@@ -39,14 +39,14 @@ WaveformMetadata loadWaveformFromBytes(
 /// Get the waveform structure (hierarchy of modules and signals)
 ///
 /// This returns the complete hierarchy without waveform data.
-WaveformStructure getWaveformStructure() =>
+Future<WaveformStructure> getWaveformStructure() =>
     RustLib.instance.api.crateApiGetWaveformStructure();
 
 /// Load waveform data for specific signals
 ///
 /// This loads the actual waveform values for the specified signal IDs.
 /// Signal IDs are the full hierarchical paths (e.g., "top.counter.clk").
-List<SignalWaveformData> getWaveformData(
+Future<List<SignalWaveformData>> getWaveformData(
         {required List<String> signalIds,
         BigInt? startTime,
         BigInt? endTime}) =>
@@ -54,17 +54,19 @@ List<SignalWaveformData> getWaveformData(
         signalIds: signalIds, startTime: startTime, endTime: endTime);
 
 /// Get the maximum timestamp in the waveform
-BigInt? getMaxTimestamp() => RustLib.instance.api.crateApiGetMaxTimestamp();
+Future<BigInt?> getMaxTimestamp() =>
+    RustLib.instance.api.crateApiGetMaxTimestamp();
 
 /// Get all timestamps in the waveform
-Uint64List getAllTimestamps() =>
+Future<Uint64List> getAllTimestamps() =>
     RustLib.instance.api.crateApiGetAllTimestamps();
 
 /// Check if a waveform is currently loaded
-bool isWaveformLoaded() => RustLib.instance.api.crateApiIsWaveformLoaded();
+Future<bool> isWaveformLoaded() =>
+    RustLib.instance.api.crateApiIsWaveformLoaded();
 
 /// Unload the current waveform and free resources
-void unloadWaveform() => RustLib.instance.api.crateApiUnloadWaveform();
+Future<void> unloadWaveform() => RustLib.instance.api.crateApiUnloadWaveform();
 
 /// Module structure with hierarchy
 class ModuleNode {

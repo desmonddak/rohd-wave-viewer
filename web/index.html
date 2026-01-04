@@ -1,24 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
-  <base href="$FLUTTER_BASE_HREF">
+  <base href="/">
 
   <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="ROHD Wave Viewer">
 
   <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -32,29 +18,48 @@
   <title>rohd_wave_viewer</title>
   <link rel="manifest" href="manifest.json">
 
-  <script>
-    // The value below is injected by flutter build, do not touch.
-    // Use the template token to be compatible with the latest Flutter web
-    // initialization: https://docs.flutter.dev/platform-integration/web/initialization
-    const serviceWorkerVersion = "{{flutter_service_worker_version}}";
-  </script>
-  <!-- This script adds the flutter initialization JS code -->
-  <script src="flutter.js" defer></script>
+  <!-- Load wellen_bridge WASM bindings (flutter_rust_bridge) -->
+  <script src="pkg/wellen_bridge.js"></script>
 </head>
 <body>
-  <script>
-    window.addEventListener('load', function(ev) {
-      // Download main.dart.js
-      _flutter.loader.load({
-        serviceWorker: {
-          serviceWorkerVersion: serviceWorkerVersion,
-        },
-      }).then(function(engineInitializer) {
-        engineInitializer.initializeEngine().then(function(appRunner) {
-          appRunner.runApp();
-        });
-      });
-    });
+  <script id="flutter-init">
+    // Initialize WASM first, then load Flutter via flutter_bootstrap.js
+    (async function() {
+      // Get base URI from the base element for proper path resolution
+      var baseHref = document.querySelector('base')?.href || '';
+      
+      // Initialize the WASM module first
+      try {
+        var wasmPath = baseHref + 'pkg/wellen_bridge_bg.wasm';
+        // With --target no-modules, wasm_bindgen expects an object with module_or_path
+        await wasm_bindgen({ module_or_path: wasmPath });
+        // After initialization, wasm_bindgen object has the exported functions
+        console.log('wellen_bridge WASM initialized');
+        
+        // CRITICAL: Explicitly assign wasm_bindgen to window for Dart @JS annotations to find it
+        // Dart's @JS("wasm_bindgen.frb_*") expects window.wasm_bindgen to exist
+        window.wasm_bindgen = wasm_bindgen;
+        console.log('window.wasm_bindgen assigned:', typeof window.wasm_bindgen);
+        
+        console.log('wasm_bindgen wire functions:', Object.keys(wasm_bindgen).filter(k => k.startsWith('wire')));
+        console.log('wasm_bindgen frb functions:', Object.keys(wasm_bindgen).filter(k => k.startsWith('frb')));
+        // Test calling frb functions directly
+        if (typeof wasm_bindgen.frb_get_rust_content_hash === 'function') {
+          var hash = wasm_bindgen.frb_get_rust_content_hash();
+          console.log('frb_get_rust_content_hash() returned:', hash);
+        } else {
+          console.error('frb_get_rust_content_hash is NOT a function:', typeof wasm_bindgen.frb_get_rust_content_hash);
+        }
+      } catch (e) {
+        console.error('Failed to initialize wellen_bridge WASM:', e);
+      }
+
+      // Now load flutter_bootstrap.js which sets up _flutter.buildConfig and calls loader.load()
+      var script = document.createElement('script');
+      script.src = baseHref + 'flutter_bootstrap.js';
+      script.type = 'application/javascript';
+      document.head.appendChild(script);
+    })();
   </script>
 </body>
 </html>

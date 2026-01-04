@@ -408,34 +408,41 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 class RustLibWire implements BaseWire {
   RustLibWire.fromExternalLibrary(ExternalLibrary lib);
 
-  void wire__crate__api__get_all_timestamps(NativePortType port_) =>
-      wasmModule.wire__crate__api__get_all_timestamps(port_);
+  JSAny? /* flutter_rust_bridge::for_generated::WireSyncRust2DartDco */
+      wire__crate__api__get_all_timestamps() =>
+          wasmModule.wire__crate__api__get_all_timestamps();
 
-  void wire__crate__api__get_max_timestamp(NativePortType port_) =>
-      wasmModule.wire__crate__api__get_max_timestamp(port_);
+  JSAny? /* flutter_rust_bridge::for_generated::WireSyncRust2DartDco */
+      wire__crate__api__get_max_timestamp() =>
+          wasmModule.wire__crate__api__get_max_timestamp();
 
-  void wire__crate__api__get_waveform_data(NativePortType port_,
-          JSAny signal_ids, JSAny? start_time, JSAny? end_time) =>
-      wasmModule.wire__crate__api__get_waveform_data(
-          port_, signal_ids, start_time, end_time);
+  JSAny? /* flutter_rust_bridge::for_generated::WireSyncRust2DartDco */
+      wire__crate__api__get_waveform_data(
+              JSAny signal_ids, JSAny? start_time, JSAny? end_time) =>
+          wasmModule.wire__crate__api__get_waveform_data(
+              signal_ids, start_time, end_time);
 
-  void wire__crate__api__get_waveform_structure(NativePortType port_) =>
-      wasmModule.wire__crate__api__get_waveform_structure(port_);
+  JSAny? /* flutter_rust_bridge::for_generated::WireSyncRust2DartDco */
+      wire__crate__api__get_waveform_structure() =>
+          wasmModule.wire__crate__api__get_waveform_structure();
 
-  void wire__crate__api__is_waveform_loaded(NativePortType port_) =>
-      wasmModule.wire__crate__api__is_waveform_loaded(port_);
+  JSAny? /* flutter_rust_bridge::for_generated::WireSyncRust2DartDco */
+      wire__crate__api__is_waveform_loaded() =>
+          wasmModule.wire__crate__api__is_waveform_loaded();
 
-  void wire__crate__api__load_waveform(
-          NativePortType port_, String file_path) =>
-      wasmModule.wire__crate__api__load_waveform(port_, file_path);
+  JSAny? /* flutter_rust_bridge::for_generated::WireSyncRust2DartDco */
+      wire__crate__api__load_waveform(String _file_path) =>
+          wasmModule.wire__crate__api__load_waveform(_file_path);
 
-  void wire__crate__api__load_waveform_from_bytes(
-          NativePortType port_, JSAny bytes, String? file_name) =>
-      wasmModule.wire__crate__api__load_waveform_from_bytes(
-          port_, bytes, file_name);
+  JSAny? /* flutter_rust_bridge::for_generated::WireSyncRust2DartDco */
+      wire__crate__api__load_waveform_from_bytes(
+              JSAny bytes, String? file_name) =>
+          wasmModule.wire__crate__api__load_waveform_from_bytes(
+              bytes, file_name);
 
-  void wire__crate__api__unload_waveform(NativePortType port_) =>
-      wasmModule.wire__crate__api__unload_waveform(port_);
+  JSAny? /* flutter_rust_bridge::for_generated::WireSyncRust2DartDco */
+      wire__crate__api__unload_waveform() =>
+          wasmModule.wire__crate__api__unload_waveform();
 }
 
 @JS('wasm_bindgen')
@@ -444,22 +451,29 @@ external RustLibWasmModule get wasmModule;
 @JS()
 @anonymous
 extension type RustLibWasmModule._(JSObject _) implements JSObject {
-  external void wire__crate__api__get_all_timestamps(NativePortType port_);
+  external JSAny? /* flutter_rust_bridge::for_generated::WireSyncRust2DartDco */
+      wire__crate__api__get_all_timestamps();
 
-  external void wire__crate__api__get_max_timestamp(NativePortType port_);
+  external JSAny? /* flutter_rust_bridge::for_generated::WireSyncRust2DartDco */
+      wire__crate__api__get_max_timestamp();
 
-  external void wire__crate__api__get_waveform_data(NativePortType port_,
-      JSAny signal_ids, JSAny? start_time, JSAny? end_time);
+  external JSAny? /* flutter_rust_bridge::for_generated::WireSyncRust2DartDco */
+      wire__crate__api__get_waveform_data(
+          JSAny signal_ids, JSAny? start_time, JSAny? end_time);
 
-  external void wire__crate__api__get_waveform_structure(NativePortType port_);
+  external JSAny? /* flutter_rust_bridge::for_generated::WireSyncRust2DartDco */
+      wire__crate__api__get_waveform_structure();
 
-  external void wire__crate__api__is_waveform_loaded(NativePortType port_);
+  external JSAny? /* flutter_rust_bridge::for_generated::WireSyncRust2DartDco */
+      wire__crate__api__is_waveform_loaded();
 
-  external void wire__crate__api__load_waveform(
-      NativePortType port_, String file_path);
+  external JSAny? /* flutter_rust_bridge::for_generated::WireSyncRust2DartDco */
+      wire__crate__api__load_waveform(String _file_path);
 
-  external void wire__crate__api__load_waveform_from_bytes(
-      NativePortType port_, JSAny bytes, String? file_name);
+  external JSAny? /* flutter_rust_bridge::for_generated::WireSyncRust2DartDco */
+      wire__crate__api__load_waveform_from_bytes(
+          JSAny bytes, String? file_name);
 
-  external void wire__crate__api__unload_waveform(NativePortType port_);
+  external JSAny? /* flutter_rust_bridge::for_generated::WireSyncRust2DartDco */
+      wire__crate__api__unload_waveform();
 }

@@ -1,0 +1,45 @@
+{
+  "name": "rohd-wave-viewer-vscode",
+  "displayName": "ROHD Wave Viewer",
+  "description": "Embeds the ROHD wave viewer Flutter web build into a VS Code Webview.",
+  "version": "0.0.1",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "activationEvents": [
+    "onCommand:rohd-wave-viewer.open"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "rohd-wave-viewer.open",
+        "title": "ROHD Wave Viewer: Open"
+      }
+    ]
+    ,
+    "customEditors": [
+      {
+        "viewType": "rohdWaveViewer.vcd",
+        "displayName": "ROHD Wave Viewer (VCD)",
+        "selector": [
+          {
+            "filenamePattern": "*.vcd"
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.79.0",
+    "typescript": "^4.9.0"
+  }
+}
