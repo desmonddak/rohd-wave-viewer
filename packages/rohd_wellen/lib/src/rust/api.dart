@@ -6,7 +6,7 @@
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `create_metadata`, `format_signal_value`, `format_to_string`, `load_waveform_native`, `scope_type_to_string`, `timescale_unit_to_string`, `var_type_to_string`
+// These functions are ignored because they are not marked as `pub`: `create_metadata`, `dump_waveform_debug`, `format_signal_value`, `format_to_string`, `load_waveform_native`, `scope_type_to_string`, `timescale_unit_to_string`, `var_type_to_string`
 // These types are ignored because they are not used by any `pub` functions: `ScopeInfo`, `WAVEFORM_STATE`, `WaveformState`, `WellenError`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `deref`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `initialize`
 

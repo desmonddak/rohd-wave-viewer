@@ -37,7 +37,7 @@ class _RohdModulePanelState extends State<RohdModulePanel> {
 
   void _tryInitializeBloc() {
     if (_initAttempted) return;
-    
+
     final bloc = context.read<RohdModuleBloc>();
     // Only initialize if we're still in Loading state (not yet initialized)
     if (bloc.state is Loading) {
@@ -49,7 +49,8 @@ class _RohdModulePanelState extends State<RohdModulePanel> {
 
   void _retryInitializeBloc() {
     _retryCount++;
-    debugPrint('[RohdModulePanel] Retrying bloc initialization (attempt $_retryCount)');
+    debugPrint(
+        '[RohdModulePanel] Retrying bloc initialization (attempt $_retryCount)');
     final bloc = context.read<RohdModuleBloc>();
     bloc.add(RohdModuleInit());
   }
@@ -84,7 +85,9 @@ class _RohdModulePanelState extends State<RohdModulePanel> {
             return const Text(bugReport);
           } else if (state is ModuleSelected) {
             // Trigger the SignalBloc
-            context.read<SignalBloc>().add(SignalUpdateEvent(state.singleModule));
+            context
+                .read<SignalBloc>()
+                .add(SignalUpdateEvent(state.singleModule));
             return ModuleTree(moduleStructure: state.moduleStructure);
           } else {
             return Container(); // Add a default return for safety

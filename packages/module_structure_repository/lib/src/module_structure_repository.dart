@@ -19,6 +19,7 @@ class ModuleStructureRepository {
 
   /// The [ModuleStructureApi] instance used to retrieve the data.
   final ModuleStructureApi _moduleStructureApi;
+
   /// Optional future that completes when the underlying API is ready.
   ///
   /// On web, the Wellen WASM may need to finish loading the waveform bytes
@@ -26,6 +27,7 @@ class ModuleStructureRepository {
   /// allows repository methods to wait for that event. Tests and native
   /// usage may leave this null.
   final Future<void>? _apiReady;
+
   /// A cache of signals by their IDs for quick lookup when appending data.
   final Map<String, Signal> _signalCache = {};
 
@@ -35,8 +37,8 @@ class ModuleStructureRepository {
   ModuleStructureRepository({
     required ModuleStructureApi moduleStructureApi,
     Future<void>? apiReady,
-  }) : _moduleStructureApi = moduleStructureApi,
-       _apiReady = apiReady;
+  })  : _moduleStructureApi = moduleStructureApi,
+        _apiReady = apiReady;
 
   /// Internal helper to wait for API readiness if provided.
   Future<void> _ensureReady() async {

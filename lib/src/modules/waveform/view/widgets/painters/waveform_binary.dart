@@ -18,8 +18,7 @@ class WaveformBinary extends Waveform {
       super.viewportWidth = 0.0,
       super.scrollOffset = 0.0,
       super.timescale = 0,
-      Listenable? repaint})
-      : super(repaint: repaint);
+      super.repaint});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -116,11 +115,11 @@ class WaveformBinary extends Waveform {
   bool shouldRepaint(covariant WaveformBinary oldDelegate) {
     // Repaint if any rendering parameters have changed
     return oldDelegate.waveform != waveform ||
-           oldDelegate.finalTime != finalTime ||
-           oldDelegate.startTime != startTime ||
-           oldDelegate.leftOffset != leftOffset ||
-           oldDelegate.viewportWidth != viewportWidth ||
-           oldDelegate.scrollOffset != scrollOffset ||
-           oldDelegate.timescale != timescale;
+        oldDelegate.finalTime != finalTime ||
+        oldDelegate.startTime != startTime ||
+        oldDelegate.leftOffset != leftOffset ||
+        oldDelegate.viewportWidth != viewportWidth ||
+        oldDelegate.scrollOffset != scrollOffset ||
+        oldDelegate.timescale != timescale;
   }
 }

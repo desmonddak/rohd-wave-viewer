@@ -19,16 +19,18 @@ import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/waveform_back
 import 'package:rohd_wave_viewer/src/const/const.dart';
 import 'package:rohd_wave_viewer/embed.dart';
 import 'dart:convert';
-import 'dart:js_interop';
-import 'package:web/web.dart' as web;
 
-// JS binding to call the force repaint function defined in index.html
-@JS('window.rohdForceRepaint')
-external void _jsRohdForceRepaint();
+// Conditional import: use web implementation on web, no-op on native platforms
+import '../../../platform/window_messages_io.dart'
+    if (dart.library.js_interop) '../../../platform/window_messages_web.dart';
+
+// Use platform-specific JS bindings for requestAnimationFrame / forceRepaint.
+import '../../../platform/js_bindings_io.dart'
+    if (dart.library.js_interop) '../../../platform/js_bindings_web.dart';
 
 void _callJsForceRepaint() {
   try {
-    _jsRohdForceRepaint();
+    jsRohdForceRepaint();
   } catch (e) {
     debugPrint('[WaveformPanel] JS force repaint error: $e');
   }
@@ -43,7 +45,8 @@ class WaveformPanel extends StatefulWidget {
   State<WaveformPanel> createState() => _WaveformPanelState();
 }
 
-class _WaveformPanelState extends State<WaveformPanel> with SingleTickerProviderStateMixin {
+class _WaveformPanelState extends State<WaveformPanel>
+    with SingleTickerProviderStateMixin {
   // Key to access the WaveformBackgroundState so we can force repaints
   final GlobalKey _backgroundKey = GlobalKey();
   double _zoomLevel = 1.0;
@@ -70,7 +73,7 @@ class _WaveformPanelState extends State<WaveformPanel> with SingleTickerProvider
   // Ctrl+drag panning can take precedence. Toggled on pointer down when
   // Control key is held.
   bool _suppressScrollPhysics = false;
-  
+
   // Counter to force multiple frame repaints after zoom (helps with embedded webviews)
   int _forceRepaintFrames = 0;
 
@@ -89,40 +92,41 @@ class _WaveformPanelState extends State<WaveformPanel> with SingleTickerProvider
       if (mounted) _focusNode.requestFocus();
     });
 
-      // Listen for messages posted by the hosting page (index.html). We expect
-      // messages with `{ rohdCtrlWheel: true, deltaY }` when the page detects a
-      // Ctrl+wheel. This is a reliable fallback when Flutter's RawKeyboard state
-      // is not reporting modifiers inside VS Code WebView.
-      try {
-        web.window.addEventListener('message', _onWindowMessage.toJS);
-      } catch (e) {
-        // ignore on non-web platforms
-      }
+    // Listen for messages posted by the hosting page (index.html). We expect
+    // messages with `{ rohdCtrlWheel: true, deltaY }` when the page detects a
+    // Ctrl+wheel. This is a reliable fallback when Flutter's RawKeyboard state
+    // is not reporting modifiers inside VS Code WebView.
+    try {
+      addWindowMessageListener(_onWindowMessage);
+    } catch (e) {
+      // ignore on non-web platforms
+    }
   }
 
-  void _onWindowMessage(web.MessageEvent event) {
+  void _onWindowMessage(dynamic rawData) {
     try {
-      final rawData = event.data;
       if (rawData == null) return;
 
-      // Try to convert JS object to Dart Map
       Map<String, dynamic>? data;
-      
-      // If the page sent a JSON string, try to parse it.
-      if (rawData.isA<JSString>()) {
+
+      if (rawData is String) {
         try {
-          data = json.decode((rawData as JSString).toDart) as Map<String, dynamic>?;
+          data = json.decode(rawData) as Map<String, dynamic>?;
         } catch (_) {
-          return; // not JSON we understand
+          return;
         }
-      } else if (rawData.isA<JSObject>()) {
-        // Convert JSObject to Dart Map via dartify
-        final dartified = (rawData as JSObject).dartify();
-        if (dartified is Map) {
-          data = Map<String, dynamic>.from(dartified);
+      } else if (rawData is Map) {
+        data = Map<String, dynamic>.from(rawData);
+      } else {
+        // Unknown type - try to convert via toString/JSON
+        try {
+          final s = rawData.toString();
+          data = json.decode(s) as Map<String, dynamic>?;
+        } catch (_) {
+          return;
         }
       }
-      
+
       if (data == null) return;
 
       final source = data['source']?.toString();
@@ -130,7 +134,8 @@ class _WaveformPanelState extends State<WaveformPanel> with SingleTickerProvider
 
       // Lightweight debug: log unexpected messages to help diagnose host noise
       if (source == null || mtype == null) {
-        debugPrint('[WaveformPanel] host message ignored (no source/type): ${data.runtimeType}');
+        debugPrint(
+            '[WaveformPanel] host message ignored (no source/type): ${data.runtimeType}');
         return;
       }
 
@@ -143,27 +148,30 @@ class _WaveformPanelState extends State<WaveformPanel> with SingleTickerProvider
           clientX = (data['clientX'] is num) ? data['clientX'] as num : null;
         } catch (_) {}
 
-        debugPrint('[WaveformPanel] shift_wheel received deltaY=$deltaY clientX=$clientX');
+        debugPrint(
+            '[WaveformPanel] shift_wheel received deltaY=$deltaY clientX=$clientX');
 
         // Immediately call JS force repaint before processing
         _callJsForceRepaint();
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
-          
+
           // Ensure focus is restored - Ctrl key might steal focus
           if (!_focusNode.hasFocus) {
             _focusNode.requestFocus();
           }
-          
+
           final RenderBox box = context.findRenderObject() as RenderBox;
-          final focalX = (clientX != null) ? box.globalToLocal(Offset(clientX.toDouble(), 0)).dx : box.size.width / 2.0;
+          final focalX = (clientX != null)
+              ? box.globalToLocal(Offset(clientX.toDouble(), 0)).dx
+              : box.size.width / 2.0;
           if (deltaY > 0) {
             _zoomWithPreservedPosition(1.0 / 1.5, focalViewportX: focalX);
           } else if (deltaY < 0) {
             _zoomWithPreservedPosition(1.5, focalViewportX: focalX);
           }
-          
+
           // Force repaint after zoom
           _callJsForceRepaint();
         });
@@ -198,6 +206,9 @@ class _WaveformPanelState extends State<WaveformPanel> with SingleTickerProvider
     if (widget.verticalScrollController == null) {
       _verticalScrollController.dispose();
     }
+    try {
+      removeWindowMessageListener(_onWindowMessage);
+    } catch (_) {}
     super.dispose();
   }
 
@@ -581,7 +592,8 @@ class _WaveformPanelState extends State<WaveformPanel> with SingleTickerProvider
 
       // Debug logging to confirm events reach Flutter
       try {
-        debugPrint('[WaveformPanel] PointerScrollEvent deltaY=$scrollDelta shift=$shiftPressed');
+        debugPrint(
+            '[WaveformPanel] PointerScrollEvent deltaY=$scrollDelta shift=$shiftPressed');
       } catch (_) {}
 
       // Determine mouse position relative to viewport (used for zoom focal point)
@@ -857,7 +869,7 @@ class _WaveformPanelState extends State<WaveformPanel> with SingleTickerProvider
                                         horizontalScrollController:
                                             _horizontalScrollController,
                                         screenWidth: actualWidth,
-                                      isCtrlPressed: _isCtrlPressed,
+                                        isCtrlPressed: _isCtrlPressed,
                                       ),
                                     ),
                                   ),

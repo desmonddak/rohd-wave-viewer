@@ -4,5 +4,10 @@ include: package:flutter_lints/flutter.yaml
 linter:
   rules:
 
+analyzer:
+  exclude:
+    - lib/src/generated/**
+    - packages/*/lib/src/rust/**
+
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

@@ -18,11 +18,170 @@
   <title>rohd_wave_viewer</title>
   <link rel="manifest" href="manifest.json">
 
+  <!-- Force WebView to keep compositing by having a tiny animated element -->
+  <style>
+    @keyframes rohd-compositor-pulse {
+      0%, 100% { opacity: 0.01; }
+      50% { opacity: 0.02; }
+    }
+    #rohd-compositor-nudge {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 1px;
+      height: 1px;
+      pointer-events: none;
+      z-index: -9999;
+      background: transparent;
+      animation: rohd-compositor-pulse 0.5s infinite;
+      will-change: opacity;
+    }
+  </style>
+
   <!-- Load wellen_bridge WASM bindings (flutter_rust_bridge) -->
   <script src="pkg/wellen_bridge.js"></script>
 </head>
 <body>
+  <!-- Tiny element with CSS animation to force WebView compositor to stay active -->
+  <div id="rohd-compositor-nudge"></div>
   <script id="flutter-init">
+    // Counter for forcing repaints - used to create visible DOM changes
+    window._rohdRepaintCounter = 0;
+
+    // Function to force the WebView compositor to present a frame
+    // Called from Dart after zoom operations
+    window.rohdForceRepaint = function() {
+      window._rohdRepaintCounter++;
+      
+      // Find the flutter container elements
+      var flutterView = document.querySelector('flutter-view') || 
+                        document.querySelector('flt-glass-pane') ||
+                        document.body;
+      var canvases = document.querySelectorAll('canvas');
+      
+      // Strategy 1: Add/remove a tiny DOM element to force layout recalculation
+      var nudge = document.createElement('div');
+      nudge.id = 'rohd-nudge-' + window._rohdRepaintCounter;
+      nudge.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;pointer-events:none;z-index:99999;background:transparent;';
+      document.body.appendChild(nudge);
+      requestAnimationFrame(function() {
+        try { nudge.remove(); } catch(e) {}
+      });
+      
+      // Strategy 2: Touch the canvas transform in a way that's visible to compositor
+      canvases.forEach(function(canvas, idx) {
+        // Add a tiny translateZ with a changing value to force GPU recalculation
+        var z = (window._rohdRepaintCounter % 2 === 0) ? '0.001px' : '0.002px';
+        canvas.style.transform = 'translateZ(' + z + ')';
+        canvas.style.willChange = 'transform, contents';
+        void canvas.offsetHeight; // Force sync reflow
+      });
+
+      // Strategy 3: Change body class with a unique counter value
+      document.body.setAttribute('data-rohd-repaint', window._rohdRepaintCounter.toString());
+      
+      // Strategy 4: Force focus cycling
+      try {
+        var activeEl = document.activeElement;
+        window.focus();
+        if (canvases.length > 0) {
+          canvases[0].focus();
+        }
+        requestAnimationFrame(function() {
+          if (activeEl && activeEl.focus) activeEl.focus();
+        });
+      } catch(e) {}
+
+      // Strategy 5: Post a message to self (sometimes wakes up event loop)
+      try {
+        window.postMessage({type: 'rohd-repaint-nudge', counter: window._rohdRepaintCounter}, '*');
+      } catch(e) {}
+
+      // Strategy 6: Force multiple animation frames with DOM changes
+      requestAnimationFrame(function frame1() {
+        document.body.style.opacity = '0.9999';
+        void document.body.offsetHeight;
+        requestAnimationFrame(function frame2() {
+          document.body.style.opacity = '1';
+          void document.body.offsetHeight;
+          requestAnimationFrame(function frame3() {
+            // Reset canvas transforms
+            canvases.forEach(function(canvas) {
+              canvas.style.transform = '';
+              canvas.style.willChange = 'auto';
+            });
+          });
+        });
+      });
+
+      // Strategy 7: Canvas size reset trick - forces WebGL context to redraw
+      // This is known to work when other methods fail
+      canvases.forEach(function(canvas) {
+        var origWidth = canvas.width;
+        var origHeight = canvas.height;
+        if (origWidth > 0 && origHeight > 0) {
+          // Briefly change canvas size to force invalidation
+          canvas.width = origWidth + 1;
+          canvas.height = origHeight + 1;
+          // Restore immediately in next frame
+          requestAnimationFrame(function() {
+            canvas.width = origWidth;
+            canvas.height = origHeight;
+          });
+        }
+      });
+
+      // Strategy 8: Dispatch resize event (forces Flutter to recalculate layout)
+      window.dispatchEvent(new Event('resize'));
+
+      // Strategy 9: Send a message to the VS Code extension host and wait for response
+      // The round-trip through the extension host may wake up the compositor
+      try {
+        if (typeof acquireVsCodeApi !== 'undefined' || window.postRohd) {
+          var vscodeApi = window._vscodeApi || (typeof acquireVsCodeApi !== 'undefined' ? acquireVsCodeApi() : null);
+          if (vscodeApi) {
+            window._vscodeApi = vscodeApi; // Cache it
+            vscodeApi.postMessage({ type: 'requestRepaint', counter: window._rohdRepaintCounter });
+          } else if (window.postRohd) {
+            window.postRohd({ type: 'requestRepaint', counter: window._rohdRepaintCounter });
+          }
+        }
+      } catch(e) {
+        console.debug('Could not send repaint request to extension:', e);
+      }
+
+      // Strategy 10: Simulate pointer leave/enter sequence
+      // This mimics what happens when the mouse actually leaves and enters the window
+      try {
+        canvases.forEach(function(canvas) {
+          var rect = canvas.getBoundingClientRect();
+          var leaveEvent = new PointerEvent('pointerleave', {
+            bubbles: false,
+            cancelable: false,
+            clientX: rect.left + rect.width / 2,
+            clientY: rect.top + rect.height / 2,
+            pointerType: 'mouse',
+            isPrimary: true
+          });
+          canvas.dispatchEvent(leaveEvent);
+          
+          requestAnimationFrame(function() {
+            var enterEvent = new PointerEvent('pointerenter', {
+              bubbles: false,
+              cancelable: false,
+              clientX: rect.left + rect.width / 2,
+              clientY: rect.top + rect.height / 2,
+              pointerType: 'mouse',
+              isPrimary: true
+            });
+            canvas.dispatchEvent(enterEvent);
+          });
+        });
+      } catch(e) {}
+
+      // Strategy 11 removed - no longer using Ctrl key
+    };
+
     // Initialize WASM first, then load Flutter via flutter_bootstrap.js
     (async function() {
       // Get base URI from the base element for proper path resolution
@@ -54,11 +213,162 @@
         console.error('Failed to initialize wellen_bridge WASM:', e);
       }
 
+      // Prevent browser zoom on Ctrl+wheel so the Flutter app can handle
+      // Ctrl+wheel for zooming the waveform. We must add the listener with
+      // `{ passive: false }` so `preventDefault()` is allowed on wheel events.
+      try {
+        // TEMP DEBUG: log keyboard and wheel events to help diagnose whether
+        // the Control key is being delivered to the page. Remove these logs
+        // after debugging.
+        window.__rohd_debug = window.__rohd_debug || {};
+        window.__rohd_debug.log = function() {
+          try { console.debug.apply(console, arguments); } catch (e) { }
+        };
+
+        window.addEventListener('keydown', function(e) {
+          try {
+            // Track Shift key state on the global window for a Dart fallback
+            if (e.key === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+              window.__shiftDown = true;
+            }
+            window.__rohd_debug.log('[index.html] keydown', e.key, e.code, {ctrl:e.ctrlKey, shift:e.shiftKey, alt:e.altKey, meta:e.metaKey});
+          } catch (err) { }
+        }, { capture: true });
+
+        window.addEventListener('keyup', function(e) {
+          try {
+            if (e.key === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+              window.__shiftDown = false;
+            }
+            window.__rohd_debug.log('[index.html] keyup', e.key, e.code, {shift:e.shiftKey});
+          } catch (err) { }
+        }, { capture: true });
+
+        // Also clear on blur / visibilitychange in case the page loses focus
+        window.addEventListener('blur', function() { try { window.__shiftDown = false; } catch (_) {} }, true);
+        document.addEventListener('visibilitychange', function() { try { if (document.visibilityState !== 'visible') window.__shiftDown = false; } catch (_) {} }, true);
+
+        // Function to simulate Shift key release (kept for completeness)
+        function simulateShiftRelease() {
+          try {
+            // Dispatch synthetic keyup events for Shift key
+            var keyupEvent = new KeyboardEvent('keyup', {
+              key: 'Shift',
+              code: 'ShiftLeft',
+              keyCode: 16,
+              which: 16,
+              shiftKey: false,
+              bubbles: true,
+              cancelable: true,
+              view: window
+            });
+            document.dispatchEvent(keyupEvent);
+            window.dispatchEvent(keyupEvent);
+            
+            // Also dispatch on the canvas
+            var canvas = document.querySelector('canvas');
+            if (canvas) canvas.dispatchEvent(keyupEvent);
+            
+            console.debug('[simulateShiftRelease] dispatched synthetic Shift keyup');
+          } catch (e) {
+            console.debug('[simulateShiftRelease] error:', e);
+          }
+        }
+
+        // Function to simulate mouse movement to wake up the WebView compositor
+        // The compositor seems to defer presentation while modifier keys are held,
+        // but mouse movement wakes it up
+        function simulateMouseMove() {
+          try {
+            // Get the Flutter canvas
+            var canvas = document.querySelector('canvas');
+            if (!canvas) return;
+            
+            var rect = canvas.getBoundingClientRect();
+            var centerX = rect.left + rect.width / 2;
+            var centerY = rect.top + rect.height / 2;
+            
+            // Create and dispatch a synthetic mousemove event
+            var moveEvent = new MouseEvent('mousemove', {
+              bubbles: true,
+              cancelable: true,
+              clientX: centerX + Math.random() * 2 - 1, // Tiny random offset
+              clientY: centerY + Math.random() * 2 - 1,
+              ctrlKey: false, // IMPORTANT: report Ctrl as not pressed
+              view: window
+            });
+            canvas.dispatchEvent(moveEvent);
+            
+            // Also try dispatching on the flutter view
+            var flutterView = document.querySelector('flutter-view') || document.querySelector('flt-glass-pane');
+            if (flutterView) {
+              flutterView.dispatchEvent(moveEvent);
+            }
+          } catch (e) {
+            console.debug('[simulateMouseMove] error:', e);
+          }
+        }
+
+        window.addEventListener('wheel', function(e) {
+          try {
+            // Log detailed wheel event including modifier state and pointer position
+            window.__rohd_debug.log('[index.html] wheel', { deltaX: e.deltaX, deltaY: e.deltaY, shift: e.shiftKey, clientX: e.clientX, clientY: e.clientY });
+            // If Shift is down according to the event, prevent default to allow zoom
+            if (e.shiftKey || window.__shiftDown) {
+              window.__rohd_debug.log('[index.html] Shift+wheel -> preventDefault & postMessage');
+              try {
+                // Post a message so Flutter can react even if modifier keys are missed by
+                // the platform or Flutter's RawKeyboard state. Tag the message so
+                // it can be reliably filtered by the Dart listener.
+                const payload = {
+                  source: 'rohd_wave_viewer',
+                  type: 'shift_wheel',
+                  deltaY: e.deltaY,
+                  clientX: e.clientX,
+                  clientY: e.clientY,
+                  shift: e.shiftKey,
+                  jsShiftDown: !!window.__shiftDown
+                };
+                window.postMessage(payload, '*');
+                
+                // CRITICAL: Force repaint after zoom message is sent
+                // Use setTimeout to ensure it happens after Flutter processes the message
+                setTimeout(function() {
+                  if (window.rohdForceRepaint) {
+                    window.rohdForceRepaint();
+                  }
+                  // Simulate mouse movement to wake up the compositor
+                  simulateMouseMove();
+                }, 50);
+                setTimeout(function() {
+                  if (window.rohdForceRepaint) {
+                    window.rohdForceRepaint();
+                  }
+                  simulateMouseMove();
+                }, 100);
+                setTimeout(function() {
+                  if (window.rohdForceRepaint) {
+                    window.rohdForceRepaint();
+                  }
+                  simulateMouseMove();
+                }, 200);
+              } catch (_) { }
+              e.preventDefault();
+            }
+          } catch (err) { /* ignore */ }
+        }, { passive: false, capture: true });
+
+        console.log('Added capturing keydown/keyup and Ctrl+wheel preventDefault listeners (TEMP DEBUG)');
+      } catch (err) {
+        console.warn('Could not add non-passive wheel listener:', err);
+      }
+
       // Now load flutter_bootstrap.js which sets up _flutter.buildConfig and calls loader.load()
       var script = document.createElement('script');
       script.src = baseHref + 'flutter_bootstrap.js';
       script.type = 'application/javascript';
       document.head.appendChild(script);
+      console.log('index.html: flutter_bootstrap.js appended (page reloaded in GUI)');
     })();
   </script>
 </body>

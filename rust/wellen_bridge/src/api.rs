@@ -240,6 +240,8 @@ pub fn load_waveform(_file_path: String) -> Result<WaveformMetadata, String> {
 fn load_waveform_native(file_path: String) -> Result<WaveformMetadata, String> {
     use wellen::viewers::{read_body, read_header_from_file};
     use wellen::LoadOptions;
+    // Early debug print so we can confirm this native code path executes
+    eprintln!("[ROHD_DEBUG] load_waveform_native file_path={}", file_path);
 
     // Read header from file
     let options = LoadOptions::default();
@@ -255,6 +257,7 @@ fn load_waveform_native(file_path: String) -> Result<WaveformMetadata, String> {
 
     let time_table = Arc::new(body_result.time_table);
     let source = Some(body_result.source);
+
 
     // Build signal_ref_map
     let signal_ref_map: HashMap<String, SignalRef> = hierarchy
@@ -320,7 +323,15 @@ pub fn load_waveform_from_bytes(bytes: Vec<u8>, file_name: Option<String>) -> Re
 
     // Get metadata
     let source_name = file_name.unwrap_or_else(|| String::from("<bytes>"));
-    let metadata = create_metadata(&hierarchy, format, source_name, &time_table);
+    let metadata = create_metadata(&hierarchy, format, source_name.clone(), &time_table);
+
+    // Debug: print info so we can confirm execution path
+    eprintln!("[ROHD_DEBUG] load_waveform_from_bytes source_name={} vars={} times={} format={:?}",
+        source_name,
+        hierarchy.iter_vars().count(),
+        time_table.len(),
+        format
+    );
 
     // Store state
     let state = WaveformState {
@@ -498,35 +509,64 @@ pub fn get_waveform_data(
         });
     }
 
+    // Dump a brief diagnostic snapshot for debugging
+    dump_waveform_debug(&result);
+
     Ok(result)
+}
+
+// Debug helper: write first few signal outputs to a file for diagnosis.
+fn dump_waveform_debug(result: &Vec<SignalWaveformData>) {
+    if result.is_empty() {
+        return;
+    }
+    eprintln!("--- get_waveform_data DUMP ---");
+    for s in result.iter().take(4) {
+        let mut vals: Vec<String> = Vec::new();
+        for p in s.data.iter().take(8) {
+            vals.push(p.value.clone());
+        }
+        eprintln!("signal_id={} first_values={:?}", s.signal_id, vals);
+    }
 }
 
 /// Format a signal value to a string
 fn format_signal_value(value: &wellen::SignalValue) -> String {
     match value {
         wellen::SignalValue::Binary(bits, len) => {
-            // Convert to binary string
+            // Interpret `bits` as big-endian byte sequence. Build an MSB-first
+            // bit string of length `len`.
             let mut s = String::new();
-            for i in (0..*len).rev() {
-                let byte_idx = (i / 4) as usize;
-                let bit_idx = i % 4;
-                if byte_idx < bits.len() {
-                    let nibble = bits[byte_idx];
-                    let bit = (nibble >> bit_idx) & 0x0F;
-                    s.push(match bit {
-                        0 => '0',
-                        1 => '1',
-                        2 => 'x',
-                        3 => 'z',
-                        _ => '?',
-                    });
-                }
-            }
-            if s.is_empty() {
-                "0".to_string()
+            let total_bits = bits.len() * 8;
+            // If bits buffer contains more bits than `len`, assume the value is
+            // right-aligned in the provided bytes (big-endian). Compute a start
+            // offset so we read the most-significant `len` bits of the buffer.
+            let start = if total_bits >= (*len as usize) {
+                total_bits - (*len as usize)
             } else {
-                s
+                0
+            };
+            for p in 0..(*len as usize) {
+                let bit_pos = start + p;
+                let byte_idx = bit_pos / 8;
+                let bit_idx_in_byte = 7 - (bit_pos % 8);
+                let bit = if byte_idx < bits.len() {
+                    (bits[byte_idx] >> bit_idx_in_byte) & 0x01
+                } else {
+                    0
+                };
+                s.push(if bit == 0 { '0' } else { '1' });
             }
+
+            // One-time debug dump
+            if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open("/tmp/rohd_signal_debug.log") {
+                use std::io::Write;
+                let _ = writeln!(f, "BINARY DUMP len={} total_bytes={} start={}", len, bits.len(), start);
+                let _ = writeln!(f, "raw_bytes={:?}", bits.iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>());
+                let _ = writeln!(f, "formatted={}", s);
+            }
+
+            if s.is_empty() { "0".to_string() } else { s }
         }
         wellen::SignalValue::FourValue(bits, len) => {
             let mut s = String::new();

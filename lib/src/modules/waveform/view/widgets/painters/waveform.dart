@@ -34,13 +34,12 @@ abstract class Waveform extends CustomPainter {
   final double scrollOffset; // horizontal scroll offset in pixels
   final int timescale; // Full timescale for absolute time mapping
 
-    Waveform(this.waveform, this.finalTime, this.startTime,
+  Waveform(this.waveform, this.finalTime, this.startTime,
       {this.leftOffset = waveformLeftOffset,
       this.viewportWidth = 0.0,
       this.scrollOffset = 0.0,
       this.timescale = 0,
-      Listenable? repaint})
-      : super(repaint: repaint);
+      super.repaint});
 
   /// Find the last value at or before [time] using binary search on ordered data.
   String? getValueAtOrBeforeTime(List<Data> data, int time) {

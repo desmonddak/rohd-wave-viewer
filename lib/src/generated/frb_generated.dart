@@ -5,6 +5,7 @@
 
 import 'api.dart';
 import 'dart:async';
+import 'dart:ffi' as ffi;
 import 'dart:convert';
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
@@ -220,6 +221,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         var arg0 = cst_encode_String(filePath);
+        try {
+          // Debug: print pointer and length fields of the cst encoded string
+          final ptrAddr = arg0.address;
+          int innerPtr = 0;
+          int innerLen = 0;
+          try {
+            innerPtr = arg0.ref.ptr.address;
+            innerLen = arg0.ref.len;
+          } catch (e) {
+            // ignore if reading fails
+          }
+          // Using print so it appears in Flutter console/logs
+          print(
+              '[FRB_DEBUG] cst_encode_String -> arg0.address=$ptrAddr inner.ptr=$innerPtr len=$innerLen');
+        } catch (e) {
+          print('[FRB_DEBUG] failed to inspect arg0: $e');
+        }
         return wire.wire__crate__api__load_waveform(port_, arg0);
       },
       codec: DcoCodec(

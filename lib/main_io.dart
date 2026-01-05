@@ -10,7 +10,8 @@ import 'package:rohd_wellen/rohd_wellen.dart';
 import 'mock_module_structure_api.dart';
 
 /// Initialize ModuleStructureApi for native platforms (Linux, macOS, Windows)
-Future<ModuleStructureApi> initializeModuleStructureApi(List<String> args) async {
+Future<ModuleStructureApi> initializeModuleStructureApi(
+    List<String> args) async {
   if (args.isNotEmpty) {
     // First argument is assumed to be a waveform file path
     final filePath = args[0];

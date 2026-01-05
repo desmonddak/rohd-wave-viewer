@@ -8,9 +8,11 @@
 //
 // 2024 December
 
+// ignore_for_file: depend_on_referenced_packages
 import 'dart:async';
 import 'dart:convert';
-import 'dart:js' as js;
+import 'package:js/js_util.dart' as js_util;
+import 'src/platform/js_interop_bindings.dart' as binds;
 import 'package:devtools_app_shared/ui.dart';
 import 'package:devtools_app_shared/utils.dart';
 import 'package:flutter/material.dart';
@@ -26,17 +28,18 @@ class WebWellenApi {
   final WellenModuleStructureApi _api = WellenModuleStructureApi();
   bool _isLoaded = false;
   final _loadCompleter = Completer<void>();
-  
+
   /// Returns the underlying API after loading is complete.
   WellenModuleStructureApi get api => _api;
-  
+
   /// Wait for the waveform to be loaded.
   Future<void> get loaded => _loadCompleter.future;
-  
+
   /// Load VCD content from bytes received via postMessage.
   Future<void> loadFromVcdContent(String vcdContent) async {
     try {
-      debugPrint('[WebWellen] Loading VCD content (${vcdContent.length} chars)');
+      debugPrint(
+          '[WebWellen] Loading VCD content (${vcdContent.length} chars)');
       final bytes = utf8.encode(vcdContent);
       await _api.loadBytes(bytes, fileName: 'webview.vcd');
       _isLoaded = true;
@@ -51,14 +54,14 @@ class WebWellenApi {
       }
     }
   }
-  
+
   bool get isLoaded => _isLoaded;
 }
 
 void main() async {
   // Disable URL strategies to avoid replaceState errors in VS Code webviews
   setUrlStrategy(null);
-  
+
   WidgetsFlutterBinding.ensureInitialized();
   setGlobal(IdeTheme, getIdeTheme());
 
@@ -74,39 +77,57 @@ void main() async {
 
   // Create web-compatible API wrapper
   final webApi = WebWellenApi();
-  
-  // Set up listener for VCD content from VS Code extension
-  if (js.context.hasProperty('rohdEmbed')) {
-    final rohdEmbed = js.context['rohdEmbed'];
+
+  // Set up listener for VCD content from host (VS Code extension)
+  try {
+    final rohdEmbed = binds.rohdEmbed;
     if (rohdEmbed != null) {
-      final onMessage = rohdEmbed['onMessage'];
-      if (onMessage != null && onMessage is js.JsFunction) {
-        onMessage.apply([js.allowInterop((dynamic data) {
-          try {
-            // Handle both JsObject and Map
-            String? type;
-            String? text;
-            
-            if (data is js.JsObject) {
-              type = data['type']?.toString();
-              text = data['text']?.toString();
-            } else if (data is Map) {
-              type = data['type']?.toString();
-              text = data['text']?.toString();
-            }
-            
-            debugPrint('[WebMain] Received message type: $type');
-            
-            if (type == 'vcdContents' && text != null) {
-              debugPrint('[WebMain] Loading VCD content (${text.length} chars)');
-              webApi.loadFromVcdContent(text);
-            }
-          } catch (e) {
-            debugPrint('[WebMain] Error handling message: $e');
-          }
-        })]);
+      try {
+        // Bind a Dart callback to the JS onMessage handler using allowInterop
+        final onMessage = js_util.getProperty(rohdEmbed, 'onMessage');
+        if (onMessage != null) {
+          js_util.callMethod(rohdEmbed, 'onMessage', [
+            js_util.allowInterop((dynamic data) {
+              try {
+                String? type;
+                String? text;
+                try {
+                  final dartified = js_util.dartify(data);
+                  if (dartified is Map) {
+                    type = dartified['type']?.toString();
+                    text = dartified['text']?.toString();
+                  }
+                } catch (_) {
+                  // Fallback parsing for string payloads
+                  if (data is String) {
+                    try {
+                      final parsed = json.decode(data);
+                      if (parsed is Map) {
+                        type = parsed['type']?.toString();
+                        text = parsed['text']?.toString();
+                      }
+                    } catch (_) {}
+                  }
+                }
+
+                debugPrint('[WebMain] Received message type: $type');
+                if (type == 'vcdContents' && text != null) {
+                  debugPrint(
+                      '[WebMain] Loading VCD content (${text.length} chars)');
+                  webApi.loadFromVcdContent(text);
+                }
+              } catch (e) {
+                debugPrint('[WebMain] Error handling message: $e');
+              }
+            })
+          ]);
+        }
+      } catch (e) {
+        debugPrint('[WebMain] rohdEmbed.onMessage setup failed: $e');
       }
     }
+  } catch (e) {
+    debugPrint('[WebMain] checking rohdEmbed failed: $e');
   }
 
   // Signal to host that we're ready

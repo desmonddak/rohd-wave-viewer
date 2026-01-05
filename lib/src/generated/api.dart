@@ -53,6 +53,10 @@ Future<List<SignalWaveformData>> getWaveformData(
     RustLib.instance.api.crateApiGetWaveformData(
         signalIds: signalIds, startTime: startTime, endTime: endTime);
 
+// Debug wrapper: fetch and log first few values for diagnosis
+// NOTE: Debug helpers should live in non-generated files.
+// Use lib/src/rust/wellen_helpers.dart for debug wrappers.
+
 /// Get the maximum timestamp in the waveform
 Future<BigInt?> getMaxTimestamp() =>
     RustLib.instance.api.crateApiGetMaxTimestamp();

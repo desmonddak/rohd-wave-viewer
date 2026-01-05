@@ -38,7 +38,8 @@ class RohdModuleBloc extends Bloc<RohdModuleEvent, RohdModuleState> {
     try {
       debugPrint('[RohdModuleBloc] onRohdModuleInit started');
       final rohdModule = await _moduleStructureRepository.getModuleStructure();
-      debugPrint('[RohdModuleBloc] Got module structure with ${rohdModule.modules.length} modules');
+      debugPrint(
+          '[RohdModuleBloc] Got module structure with ${rohdModule.modules.length} modules');
 
       // Load waveform data for all signals
       final allSignalIds = _moduleStructureRepository.cachedSignalIds;
@@ -47,7 +48,8 @@ class RohdModuleBloc extends Bloc<RohdModuleEvent, RohdModuleState> {
         await _moduleStructureRepository.loadAndAppendWaveformData(
           signalIds: allSignalIds,
         );
-        debugPrint('[RohdModuleBloc] Waveform data loaded for ${allSignalIds.length} signals');
+        debugPrint(
+            '[RohdModuleBloc] Waveform data loaded for ${allSignalIds.length} signals');
       }
 
       emit(Rendered(rohdModule));

@@ -10,21 +10,21 @@ Quick start:
 flutter build web
 ```
 
-2. Copy the build into the extension media folder:
+1. Copy the build into the extension media folder:
 
 ```bash
 cd vscode-extension
 ./scripts/copy_web_build.sh
 ```
 
-3. Install dependencies and compile the extension:
+1. Install dependencies and compile the extension:
 
 ```bash
 npm install
 npm run compile
 ```
 
-4. Run the extension in the Extension Development Host using the provided launch configuration.
+1. Run the extension in the Extension Development Host using the provided launch configuration.
 
 Embedding API
 -------------
@@ -46,22 +46,24 @@ Then the host extension can send messages to the app and receive responses.
 .vcd Custom Editor
 ------------------
 
-This extension registers a custom editor for `*.vcd` files. When you open a `.vcd` file, the extension:
+This extension registers a custom editor for waveform files (e.g., `*.vcd`, `*.ghw`, `*.fst`). When you open a supported file, the extension:
 
 - Creates a Webview and loads the embedded Flutter web build.
-- Posts the file contents to the webview via `postMessage({ type: 'vcdContents', text, uri })`.
-- Listens for `requestSave` messages from the webview to write back changes to the file.
+- Posts a webview-accessible URI to the webview via `postMessage({ type: 'vcdUri', uri, originalUri })`.
+- Listens for `requestSave` messages from the webview to write back changes to the original file.
 
-The embedded app should listen for `vcdContents` messages and respond with messages as needed. Example:
+The embedded app should listen for `vcdUri` messages and fetch the provided URI. Example (embedded JS):
 
 ```js
 window.addEventListener('message', (ev) => {
-	const msg = ev.data;
-	if (msg && msg.type === 'vcdContents') {
-		// Load VCD text in the viewer
-		console.log('VCD content for', msg.uri, msg.text.slice(0,200));
-	}
+  const msg = ev.data;
+  if (msg && msg.type === 'vcdUri') {
+    fetch(msg.uri).then(r => r.text()).then(text => {
+      // Load VCD text in the viewer
+      console.log('VCD content for', msg.originalUri, text.slice(0,200));
+      // Forward to your app's message handler if needed
+      if (window.__rohdMessageCallback) window.__rohdMessageCallback({ type: 'vcdContents', text, uri: msg.originalUri });
+    });
+  }
 });
 ```
-
-
