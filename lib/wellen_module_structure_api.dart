@@ -28,12 +28,14 @@ class WellenModuleStructureApi extends ModuleStructureApi {
     try {
       if (_allSignalIds.isNotEmpty) {
         final sampleSignal = _allSignalIds.first;
-        final data =
-            await helpers.getWaveformDataDebug(signalIds: [sampleSignal]);
+        final data = await helpers.getWaveformDataDebug(
+          signalIds: [sampleSignal],
+        );
         if (data.isNotEmpty && data.first.data.isNotEmpty) {
           final values = data.first.data.take(8).map((p) => p.value).toList();
           debugPrint(
-              '[FRB_DEBUG] First signal: $sampleSignal first_values=$values');
+            '[FRB_DEBUG] First signal: $sampleSignal first_values=$values',
+          );
         } else {
           debugPrint('[FRB_DEBUG] No waveform data points for $sampleSignal');
         }
@@ -105,10 +107,14 @@ class WellenModuleStructureApi extends ModuleStructureApi {
   }
 
   @override
-  Stream<WaveformData> streamWaveformData(
-      {required List<String> signalIds, int? startTime}) async* {
-    final allData =
-        await getWaveformData(signalIds: signalIds, startTime: startTime);
+  Stream<WaveformData> streamWaveformData({
+    required List<String> signalIds,
+    int? startTime,
+  }) async* {
+    final allData = await getWaveformData(
+      signalIds: signalIds,
+      startTime: startTime,
+    );
     for (final item in allData) {
       yield item;
     }

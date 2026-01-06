@@ -4,10 +4,16 @@
   "description": "Embeds the ROHD wave viewer Flutter web build into a VS Code Webview.",
   "version": "0.0.1",
   "publisher": "local",
+  "repository": {
+    "type": "git",
+    "url": "https://example.com/local/rohd-wave-viewer.git"
+  },
   "engines": {
-    "vscode": "^1.60.0"
+    "vscode": "^1.79.0"
   },
   "activationEvents": [
+    "onCommand:rohd-wave-viewer.open",
+    "onCustomEditor:rohdWaveViewer.vcd"
   ],
   "main": "./out/extension.js",
   "contributes": {

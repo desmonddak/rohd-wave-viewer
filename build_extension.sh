@@ -9,6 +9,65 @@ cd "$SCRIPT_DIR"
 
 echo "=== ROHD Wave Viewer Build Script ==="
 
+# Helper: run command and capture version, tolerant to missing command
+capture_version() {
+    local name="$1"; shift
+    local cmd=("$@")
+    if ! command -v "${cmd[0]}" >/dev/null 2>&1; then
+        echo "${name}: not found"
+        return 1
+    fi
+    local out
+    if out="$(${cmd[@]} 2>&1)"; then
+        # print first non-empty line
+        local line
+        line=$(printf "%s" "$out" | sed -n '1p')
+        echo "${name}: ${line}"
+        return 0
+    else
+        echo "${name}: unknown"
+        return 2
+    fi
+}
+
+# Compare actual vs expected, print warning if mismatch
+check_version() {
+    local label="$1"; local actual="$2"; local expectedEnv="$3"
+    local expectedVal="${!expectedEnv}"
+    if [ -n "$expectedVal" ]; then
+        if [[ "$actual" != *"$expectedVal"* ]]; then
+            echo "WARNING: ${label} version mismatch; expected '${expectedVal}', got '${actual}'"
+        else
+            echo "OK: ${label} matches expected '${expectedVal}'"
+        fi
+    fi
+}
+
+echo "Detected tool versions:"
+FLUTTER_VER=$(capture_version "flutter" flutter --version || true)
+CARGO_VER=$(capture_version "cargo" cargo --version || true)
+RUSTUP_VER=$(capture_version "rustup" rustup --version || true)
+WASM_PACK_VER=$(capture_version "wasm-pack" wasm-pack --version || true)
+NODE_VER=$(capture_version "node" node --version || true)
+NPM_VER=$(capture_version "npm" npm --version || true)
+TSC_VER="$(cd vscode-extension 2>/dev/null && [ -f package.json ] && node -e "try{const p=require('./vscode-extension/package.json'); console.log((p.devDependencies && p.devDependencies.typescript)||p.dependencies.typescript||'') }catch(e){}" 2>/dev/null || true)"
+if [ -n "$TSC_VER" ]; then
+  echo "typescript (declared in package.json): ${TSC_VER}"
+fi
+
+# Print the captured versions so they are visible in stdout
+echo "$FLUTTER_VER"
+echo "$CARGO_VER"
+echo "$RUSTUP_VER"
+echo "$WASM_PACK_VER"
+echo "$NODE_VER"
+echo "$NPM_VER"
+
+# Optional environment variables you can set to assert versions, e.g. EXPECT_FLUTTER
+# check_version "flutter" "$FLUTTER_VER" EXPECT_FLUTTER
+# check_version "cargo" "$CARGO_VER" EXPECT_CARGO
+
+
 # Check for required tools
 command -v flutter >/dev/null 2>&1 || { echo "Error: flutter not found"; exit 1; }
 command -v cargo >/dev/null 2>&1 || { echo "Error: cargo not found"; exit 1; }
