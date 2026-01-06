@@ -1,4 +1,5 @@
-import 'package:js/js_util.dart' as js_util;
+import 'src/platform/js_util_nojs.dart'
+  if (dart.library.js) 'package:js/js_util.dart' as js_util;
 // js_interop_bindings not required here; keep js_util usage
 
 void signalEmbedReadyImpl([Map<String, dynamic>? info]) {

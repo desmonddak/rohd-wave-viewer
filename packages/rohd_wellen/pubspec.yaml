@@ -11,7 +11,7 @@ environment:
   sdk: '>=3.3.0 <4.0.0'
 
 dependencies:
-  flutter_rust_bridge: 2.6.0
+  flutter_rust_bridge: 2.7.0
   ffi: ^2.1.0
   meta: ^1.9.0
   module_structure_api:

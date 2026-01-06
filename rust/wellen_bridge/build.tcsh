@@ -2,8 +2,8 @@
 # Build script for wellen_bridge
 # Handles Rust toolchain switching automatically
 
-set STABLE_CARGO = ~/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo
-set RUST_180_CARGO = ~/.rustup/toolchains/1.80.0-x86_64-unknown-linux-gnu/bin/cargo
+set STABLE_CARGO = ${HOME}/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo
+set RUST_180_CARGO = ${HOME}/.rustup/toolchains/1.80.0-x86_64-unknown-linux-gnu/bin/cargo
 
 echo "=== wellen_bridge Build Script ==="
 echo ""
@@ -13,10 +13,13 @@ echo "  - Rust 1.92+: For wellen_bridge library (wellen 0.20.1 requires edition2
 echo ""
 
 # Check if code generator is installed
-if (! -x ~/.cargo/bin/flutter_rust_bridge_codegen) then
+if (! -x ${HOME}/.cargo/bin/flutter_rust_bridge_codegen) then
     echo "flutter_rust_bridge_codegen not found. Installing with Rust 1.80..."
     if (-x "$RUST_180_CARGO") then
         echo "Using Rust 1.80 to install code generator..."
+        # Ensure per-user cargo/rustup locations
+        setenv CARGO_HOME ${HOME}/.cargo
+        setenv RUSTUP_HOME ${HOME}/.rustup
         $RUST_180_CARGO install flutter_rust_bridge_codegen --version 2.6.0 --locked
         if ($status != 0) then
             echo "ERROR: Failed to install code generator"
@@ -44,7 +47,8 @@ endif
 setenv PATH ~/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:$PATH
 
 # Build the library
-cd /home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridge
+$script_dir = `dirname $0`
+cd $script_dir
 $STABLE_CARGO build --release
 
 if ($status != 0) then

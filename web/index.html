@@ -187,6 +187,27 @@
       // Get base URI from the base element for proper path resolution
       var baseHref = document.querySelector('base')?.href || '';
       
+      // Log environment info for debugging
+      console.log('User Agent:', navigator.userAgent);
+      console.log('WebAssembly support:', typeof WebAssembly !== 'undefined');
+      
+      // Test WebAssembly reference-types support (needed for externref)
+      var hasReferenceTypes = false;
+      try {
+        // Try to create a simple wasm module with a table that uses externref
+        var testBytes = new Uint8Array([
+          0x00, 0x61, 0x73, 0x6D, // magic
+          0x01, 0x00, 0x00, 0x00, // version
+          0x04, 0x05, 0x01,       // table section
+          0x6F, 0x01, 0x00, 0x04  // table externref min=0 max=4
+        ]);
+        var testModule = new WebAssembly.Module(testBytes);
+        hasReferenceTypes = true;
+        console.log('WebAssembly reference-types: SUPPORTED');
+      } catch (e) {
+        console.log('WebAssembly reference-types: NOT SUPPORTED -', e.message);
+      }
+      
       // Initialize the WASM module first
       try {
         var wasmPath = baseHref + 'pkg/wellen_bridge_bg.wasm';

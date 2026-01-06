@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'package:js/js_util.dart' as js_util;
+import 'src/platform/js_util_nojs.dart'
+  if (dart.library.js) 'package:js/js_util.dart' as js_util;
 import 'js_interop_bindings.dart' as binds;
 
 typedef WindowMessageCallback = void Function(dynamic data);

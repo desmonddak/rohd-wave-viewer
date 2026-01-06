@@ -100,9 +100,19 @@ class WellenModuleStructureApi extends ModuleStructureApi {
   /// [fileName] is optional and used for format detection hints.
   Future<void> loadBytes(List<int> bytes, {String? fileName}) async {
     await init();
-    rust.loadWaveformFromBytes(bytes: bytes, fileName: fileName);
-    _cachedStructure = rust.getWaveformStructure();
-    _isLoaded = true;
+    try {
+      rust.loadWaveformFromBytes(bytes: bytes, fileName: fileName);
+      _cachedStructure = rust.getWaveformStructure();
+      _isLoaded = true;
+    } catch (e, stackTrace) {
+      // Surface wasm/rust errors for easier debugging in webview console
+      // and host logs.
+      // We rethrow after logging so callers can handle errors as needed.
+      // Note: debugPrint not available here in pure package; use print.
+      print('[WellenModuleStructureApi] Error in loadBytes: $e');
+      print('[WellenModuleStructureApi] Stack trace: $stackTrace');
+      rethrow;
+    }
   }
 
   @override

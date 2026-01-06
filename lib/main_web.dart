@@ -11,8 +11,13 @@
 // ignore_for_file: depend_on_referenced_packages
 import 'dart:async';
 import 'dart:convert';
-import 'package:js/js_util.dart' as js_util;
-import 'src/platform/js_interop_bindings.dart' as binds;
+import 'src/platform/js_util_nojs.dart'
+  if (dart.library.js) 'package:js/js_util.dart' as js_util;
+// Conditional import: use the real JS interop bindings when `dart.library.js_interop`
+// is available; otherwise fall back to a no-op shim.
+import 'src/platform/js_interop_bindings_nojs.dart'
+  if (dart.library.js_interop) 'src/platform/js_interop_bindings.dart'
+  as binds;
 import 'package:devtools_app_shared/ui.dart';
 import 'package:devtools_app_shared/utils.dart';
 import 'package:flutter/material.dart';
@@ -47,8 +52,9 @@ class WebWellenApi {
         _loadCompleter.complete();
       }
       debugPrint('[WebWellen] VCD loaded successfully');
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('[WebWellen] Error loading VCD: $e');
+      debugPrint('[WebWellen] Stack trace: $stackTrace');
       if (!_loadCompleter.isCompleted) {
         _loadCompleter.completeError(e);
       }
@@ -70,9 +76,18 @@ void main() async {
   try {
     await WellenModuleStructureApi.init();
     debugPrint('[WebMain] WellenModuleStructureApi initialized successfully');
+    // Track whether WASM initialized. Expose a JS-global `wasmInitOk` so the
+    // host (extension) can detect success. Use `js_util.setProperty` which
+    // is a no-op when JS interop isn't available.
+    try {
+      js_util.setProperty(js_util.globalThis, 'wasmInitOk', true);
+    } catch (_) {}
   } catch (e, stackTrace) {
     debugPrint('[WebMain] ERROR initializing WellenModuleStructureApi: $e');
     debugPrint('[WebMain] Stack trace: $stackTrace');
+    try {
+      js_util.setProperty(js_util.globalThis, 'wasmInitOk', false);
+    } catch (_) {}
   }
 
   // Create web-compatible API wrapper
@@ -131,7 +146,19 @@ void main() async {
   }
 
   // Signal to host that we're ready
-  signalEmbedReady({'platform': 'web', 'version': '1.0.0', 'wasm': true});
+  // If `wasmInitOk` is available in the JS interop environment, include it
+  // in the readiness signal; otherwise omit the field.
+  // Include the `wasm` boolean if present on the global object.
+  try {
+    final wasmFlag = js_util.getProperty(js_util.globalThis, 'wasmInitOk');
+    if (wasmFlag != null) {
+      signalEmbedReady({'platform': 'web', 'version': '1.0.0', 'wasm': wasmFlag});
+    } else {
+      signalEmbedReady({'platform': 'web', 'version': '1.0.0'});
+    }
+  } catch (_) {
+    signalEmbedReady({'platform': 'web', 'version': '1.0.0'});
+  }
 
   runApp(
     App(
