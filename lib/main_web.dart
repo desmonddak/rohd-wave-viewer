@@ -20,7 +20,7 @@ import 'package:rohd_wave_viewer/app.dart';
 import 'package:module_structure_repository/module_structure_repository.dart';
 import 'package:rohd_wellen/rohd_wellen.dart';
 
-import 'src/platform/platform.dart' as plat;
+// platform facade imported once above
 
 /// Web-compatible wrapper that initializes WellenModuleStructureApi with bytes.
 class WebWellenApi {
@@ -146,12 +146,12 @@ void main() async {
     try {
     final wasmFlag = plat.getProperty(plat.globalThis, 'wasmInitOk');
     if (wasmFlag != null) {
-      signalEmbedReady({'platform': 'web', 'version': '1.0.0', 'wasm': wasmFlag});
+      plat.signalEmbedReady({'platform': 'web', 'version': '1.0.0', 'wasm': wasmFlag});
     } else {
-      signalEmbedReady({'platform': 'web', 'version': '1.0.0'});
+      plat.signalEmbedReady({'platform': 'web', 'version': '1.0.0'});
     }
   } catch (_) {
-    signalEmbedReady({'platform': 'web', 'version': '1.0.0'});
+    plat.signalEmbedReady({'platform': 'web', 'version': '1.0.0'});
   }
 
   runApp(

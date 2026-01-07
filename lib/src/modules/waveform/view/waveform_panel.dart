@@ -21,7 +21,6 @@ import '../../../platform/platform.dart' as plat;
 import 'dart:convert';
 
 // Conditional import: use web implementation on web, no-op on native platforms
-import '../../../platform/platform.dart' as plat;
 
 void _callJsForceRepaint() {
   try {
@@ -642,7 +641,7 @@ class _WaveformPanelState extends State<WaveformPanel>
     // Fallback: consult JS tracker if available (useful inside VS Code WebView
     // where modifier key events may sometimes be intercepted by the host).
     try {
-      return isShiftDownFromJs();
+      return plat.isShiftDownFromJs();
     } catch (e) {
       return false;
     }
