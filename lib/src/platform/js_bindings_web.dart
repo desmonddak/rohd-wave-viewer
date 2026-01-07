@@ -1,11 +1,9 @@
-import 'src/platform/js_util_nojs.dart'
-  if (dart.library.js) 'package:js/js_util.dart' as js_util;
-import 'js_interop_bindings.dart' as binds;
+import 'platform.dart' as plat;
 
 // Call a browser requestAnimationFrame with a Dart callback.
 void jsRequestAnimationFrame(void Function() cb) {
   try {
-    binds.requestAnimationFrame(js_util.allowInterop((_) {
+    plat.requestAnimationFrame(plat.allowInterop((_) {
       try {
         cb();
       } catch (_) {}
@@ -17,7 +15,7 @@ void jsRequestAnimationFrame(void Function() cb) {
 void jsRohdForceRepaint() {
   try {
     try {
-      binds.rohdForceRepaint();
+      plat.rohdForceRepaint();
     } catch (_) {
       // fallback: do nothing if not present
     }

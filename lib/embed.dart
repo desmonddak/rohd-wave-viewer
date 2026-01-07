@@ -1,8 +1,7 @@
-// Wrapper that selects the correct embed implementation for the platform.
-import 'src/platform/embed_io.dart'
-    if (dart.library.js_interop) 'src/platform/embed_web.dart';
+// Facade-based wrapper for embed helpers
+import 'src/platform/platform.dart' as plat;
 
 void signalEmbedReady([Map<String, dynamic>? info]) =>
-    signalEmbedReadyImpl(info);
-void postMessageToHost(Object message) => postMessageToHostImpl(message);
-bool isShiftDownFromJs() => isShiftDownFromJsImpl();
+    plat.signalEmbedReadyImpl(info);
+void postMessageToHost(Object message) => plat.postMessageToHostImpl(message);
+bool isShiftDownFromJs() => plat.isShiftDownFromJsImpl();

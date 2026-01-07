@@ -1,6 +1,5 @@
-import 'src/platform/js_util_nojs.dart'
-  if (dart.library.js) 'package:js/js_util.dart' as js_util;
-// js_interop_bindings not required here; keep js_util usage
+import 'platform.dart' as plat;
+// Uses the unified platform facade for JS utilities and externals.
 
 void signalEmbedReadyImpl([Map<String, dynamic>? info]) {
   try {
@@ -9,10 +8,10 @@ void signalEmbedReadyImpl([Map<String, dynamic>? info]) {
     try {
       try {
         // Use console.log if available
-        final console = js_util.getProperty(js_util.globalThis, 'console');
+        final console = plat.getProperty(plat.globalThis, 'console');
         if (console != null) {
-          js_util.callMethod(console, 'log',
-              ['[embed] signalEmbedReady called', js_util.jsify(payload)]);
+          plat.callMethod(console, 'log',
+              ['[embed] signalEmbedReady called', plat.jsify(payload)]);
         }
       } catch (_) {}
     } catch (e) {
@@ -24,11 +23,11 @@ void signalEmbedReadyImpl([Map<String, dynamic>? info]) {
     }
     try {
       try {
-        final cb = js_util.getProperty(js_util.globalThis, '__rohdEmbedReady');
+        final cb = plat.getProperty(plat.globalThis, '__rohdEmbedReady');
         if (cb != null) {
-          js_util.callMethod(cb, 'call', [
-            js_util.getProperty(js_util.globalThis, 'window'),
-            js_util.jsify(payload)
+          plat.callMethod(cb, 'call', [
+            plat.getProperty(plat.globalThis, 'window'),
+            plat.jsify(payload)
           ]);
         }
       } catch (_) {}
@@ -46,34 +45,34 @@ void signalEmbedReadyImpl([Map<String, dynamic>? info]) {
 
 void postMessageToHostImpl(Object message) {
   try {
-    try {
-      try {
-        final post = js_util.getProperty(js_util.globalThis, 'postRohd');
-        if (post != null) {
-          js_util.callMethod(post, 'call', [
-            js_util.getProperty(js_util.globalThis, 'window'),
-            js_util.jsify(message as Map)
-          ]);
-          return;
-        }
-      } catch (_) {}
-    } catch (e) {
+        try {
+        try {
+          final post = plat.getProperty(plat.globalThis, 'postRohd');
+          if (post != null) {
+            plat.callMethod(post, 'call', [
+              plat.getProperty(plat.globalThis, 'window'),
+              plat.jsify(message as Map)
+            ]);
+            return;
+          }
+        } catch (_) {}
+      } catch (e) {
       // document postRohd invocation failures for diagnostics
       // ignore: avoid_print
       print('[embed] postRohd call failed: $e');
     }
-    try {
-      try {
-        final embed = js_util.getProperty(js_util.globalThis, 'rohdEmbed');
-        if (embed != null) {
-          final postFn = js_util.getProperty(embed, 'postMessage');
-          if (postFn != null) {
-            js_util.callMethod(
-                postFn, 'call', [embed, js_util.jsify(message as Map)]);
+        try {
+        try {
+          final embed = plat.getProperty(plat.globalThis, 'rohdEmbed');
+          if (embed != null) {
+            final postFn = plat.getProperty(embed, 'postMessage');
+            if (postFn != null) {
+              plat.callMethod(
+                  postFn, 'call', [embed, plat.jsify(message as Map)]);
+            }
           }
-        }
-      } catch (_) {}
-    } catch (e) {
+        } catch (_) {}
+      } catch (e) {
       // postMessage via rohdEmbed failed — log for debugging
       // ignore: avoid_print
       print('[embed] rohdEmbed.postMessage failed: $e');
@@ -87,11 +86,11 @@ void postMessageToHostImpl(Object message) {
 
 bool isShiftDownFromJsImpl() {
   try {
-    final jsVal = js_util.getProperty(js_util.globalThis, '__shiftDown');
+    final jsVal = plat.getProperty(plat.globalThis, '__shiftDown');
     if (jsVal == null) return false;
     // js_util.dartify will convert JS booleans to Dart bool
     try {
-      final dartVal = js_util.dartify(jsVal);
+      final dartVal = plat.dartify(jsVal);
       if (dartVal is bool) return dartVal;
     } catch (_) {}
     return jsVal.toString().toLowerCase() == 'true';

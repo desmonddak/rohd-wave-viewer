@@ -11,10 +11,8 @@ import 'package:devtools_app_shared/ui.dart';
 import 'package:devtools_app_shared/utils.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-// Use a platform wrapper for setUrlStrategy so native builds don't import web-only libraries
-import 'src/platform/url_strategy_io.dart'
-    if (dart.library.js_interop) 'src/platform/url_strategy_web.dart'
-    as url_strategy;
+// Use platform facade for setUrlStrategy so implementations are selected centrally
+import 'src/platform/platform.dart' as plat;
 import 'package:rohd_wave_viewer/app.dart';
 import 'package:module_structure_repository/module_structure_repository.dart';
 import 'package:module_structure_api/module_structure_api.dart';
@@ -27,7 +25,7 @@ import 'main_io.dart' if (dart.library.js_interop) 'main_web.dart' as platform;
 void main(List<String> args) async {
   // Disable URL strategies on web to avoid replaceState errors in webviews
   if (kIsWeb) {
-    url_strategy.setUrlStrategySafe(null);
+    plat.setUrlStrategySafe(null);
   }
 
   WidgetsFlutterBinding.ensureInitialized();

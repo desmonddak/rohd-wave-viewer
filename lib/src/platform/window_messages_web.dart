@@ -1,7 +1,5 @@
 import 'dart:convert';
-import 'src/platform/js_util_nojs.dart'
-  if (dart.library.js) 'package:js/js_util.dart' as js_util;
-import 'js_interop_bindings.dart' as binds;
+import 'platform.dart' as plat;
 
 typedef WindowMessageCallback = void Function(dynamic data);
 
@@ -10,17 +8,17 @@ void addWindowMessageListener(WindowMessageCallback cb) {
   try {
     // Use JS interop binding to register a message handler on window
     try {
-      binds.requestAnimationFrame((_) {}); // ensure binding is present
+      plat.requestAnimationFrame((_) {}); // ensure binding is present
     } catch (_) {}
     // Add a generic listener via JS global window.addEventListener
     final addEvent =
-        js_util.getProperty(js_util.globalThis, 'addEventListener');
+        plat.getProperty(plat.globalThis, 'addEventListener');
     if (addEvent != null) {
-      js_util.callMethod(js_util.globalThis, 'addEventListener', [
+      plat.callMethod(plat.globalThis, 'addEventListener', [
         'message',
-        js_util.allowInterop((e) {
+        plat.allowInterop((e) {
           try {
-            final data = js_util.getProperty(e, 'data');
+            final data = plat.getProperty(e, 'data');
             if (data == null) return;
             if (data is String) {
               try {
@@ -30,7 +28,7 @@ void addWindowMessageListener(WindowMessageCallback cb) {
               } catch (_) {}
             }
             try {
-              final dartified = js_util.dartify(data);
+                final dartified = plat.dartify(data);
               if (dartified != null) {
                 cb(dartified);
                 return;

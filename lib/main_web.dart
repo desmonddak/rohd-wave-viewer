@@ -11,13 +11,7 @@
 // ignore_for_file: depend_on_referenced_packages
 import 'dart:async';
 import 'dart:convert';
-import 'src/platform/js_util_nojs.dart'
-  if (dart.library.js) 'package:js/js_util.dart' as js_util;
-// Conditional import: use the real JS interop bindings when `dart.library.js_interop`
-// is available; otherwise fall back to a no-op shim.
-import 'src/platform/js_interop_bindings_nojs.dart'
-  if (dart.library.js_interop) 'src/platform/js_interop_bindings.dart'
-  as binds;
+import 'src/platform/platform.dart' as plat;
 import 'package:devtools_app_shared/ui.dart';
 import 'package:devtools_app_shared/utils.dart';
 import 'package:flutter/material.dart';
@@ -80,13 +74,13 @@ void main() async {
     // host (extension) can detect success. Use `js_util.setProperty` which
     // is a no-op when JS interop isn't available.
     try {
-      js_util.setProperty(js_util.globalThis, 'wasmInitOk', true);
+      plat.setProperty(plat.globalThis, 'wasmInitOk', true);
     } catch (_) {}
   } catch (e, stackTrace) {
     debugPrint('[WebMain] ERROR initializing WellenModuleStructureApi: $e');
     debugPrint('[WebMain] Stack trace: $stackTrace');
     try {
-      js_util.setProperty(js_util.globalThis, 'wasmInitOk', false);
+      plat.setProperty(plat.globalThis, 'wasmInitOk', false);
     } catch (_) {}
   }
 
@@ -95,19 +89,19 @@ void main() async {
 
   // Set up listener for VCD content from host (VS Code extension)
   try {
-    final rohdEmbed = binds.rohdEmbed;
+    final rohdEmbed = plat.rohdEmbed;
     if (rohdEmbed != null) {
       try {
         // Bind a Dart callback to the JS onMessage handler using allowInterop
-        final onMessage = js_util.getProperty(rohdEmbed, 'onMessage');
+        final onMessage = plat.getProperty(rohdEmbed, 'onMessage');
         if (onMessage != null) {
-          js_util.callMethod(rohdEmbed, 'onMessage', [
-            js_util.allowInterop((dynamic data) {
+          plat.callMethod(rohdEmbed, 'onMessage', [
+            plat.allowInterop((dynamic data) {
               try {
                 String? type;
                 String? text;
                 try {
-                  final dartified = js_util.dartify(data);
+                  final dartified = plat.dartify(data);
                   if (dartified is Map) {
                     type = dartified['type']?.toString();
                     text = dartified['text']?.toString();
@@ -133,8 +127,8 @@ void main() async {
                 }
               } catch (e) {
                 debugPrint('[WebMain] Error handling message: $e');
-              }
-            })
+                }
+              })
           ]);
         }
       } catch (e) {
@@ -149,8 +143,8 @@ void main() async {
   // If `wasmInitOk` is available in the JS interop environment, include it
   // in the readiness signal; otherwise omit the field.
   // Include the `wasm` boolean if present on the global object.
-  try {
-    final wasmFlag = js_util.getProperty(js_util.globalThis, 'wasmInitOk');
+    try {
+    final wasmFlag = plat.getProperty(plat.globalThis, 'wasmInitOk');
     if (wasmFlag != null) {
       signalEmbedReady({'platform': 'web', 'version': '1.0.0', 'wasm': wasmFlag});
     } else {

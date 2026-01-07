@@ -21,16 +21,11 @@ import 'package:rohd_wave_viewer/embed.dart';
 import 'dart:convert';
 
 // Conditional import: use web implementation on web, no-op on native platforms
-import '../../../platform/window_messages_io.dart'
-    if (dart.library.js_interop) '../../../platform/window_messages_web.dart';
-
-// Use platform-specific JS bindings for requestAnimationFrame / forceRepaint.
-import '../../../platform/js_bindings_io.dart'
-    if (dart.library.js_interop) '../../../platform/js_bindings_web.dart';
+import '../../../platform/platform.dart' as plat;
 
 void _callJsForceRepaint() {
   try {
-    jsRohdForceRepaint();
+    plat.jsRohdForceRepaint();
   } catch (e) {
     debugPrint('[WaveformPanel] JS force repaint error: $e');
   }
@@ -93,11 +88,11 @@ class _WaveformPanelState extends State<WaveformPanel>
     });
 
     // Listen for messages posted by the hosting page (index.html). We expect
-    // messages with `{ rohdCtrlWheel: true, deltaY }` when the page detects a
-    // Ctrl+wheel. This is a reliable fallback when Flutter's RawKeyboard state
+    // messages with `{ type: 'shift_wheel', deltaY }` when the page detects a
+    // Shift+wheel. This is a reliable fallback when Flutter's RawKeyboard state
     // is not reporting modifiers inside VS Code WebView.
     try {
-      addWindowMessageListener(_onWindowMessage);
+      plat.addWindowMessageListener(_onWindowMessage);
     } catch (e) {
       // ignore on non-web platforms
     }
@@ -157,7 +152,7 @@ class _WaveformPanelState extends State<WaveformPanel>
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
 
-          // Ensure focus is restored - Ctrl key might steal focus
+          // Ensure focus is restored - focus can be lost when modifier keys are used
           if (!_focusNode.hasFocus) {
             _focusNode.requestFocus();
           }
@@ -207,7 +202,7 @@ class _WaveformPanelState extends State<WaveformPanel>
       _verticalScrollController.dispose();
     }
     try {
-      removeWindowMessageListener(_onWindowMessage);
+      plat.removeWindowMessageListener(_onWindowMessage);
     } catch (_) {}
     super.dispose();
   }

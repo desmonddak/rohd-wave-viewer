@@ -31,3 +31,7 @@ dynamic callMethod(dynamic target, String method, List args) {
 dynamic allowInterop(Function f) => f;
 
 dynamic dartify(dynamic o) => o;
+
+/// Convert Dart collections to values suitable for JS interop calls.
+/// In the no-JS shim this is a no-op returning the original object.
+dynamic jsify(dynamic o) => o;
