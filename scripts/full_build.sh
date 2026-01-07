@@ -9,13 +9,10 @@ echo "[full-build] Backing up generated files"
 echo "[full-build] Cleaning compiled Rust artifacts and generated files"
 "$SCRIPT_DIR/clean_rust_and_generated.sh"
 
-echo "[full-build] Step 1: generate flutter_rust_bridge bindings"
-"$SCRIPT_DIR/generate_frb.sh"
+echo "[full-build] Step 1: build wellen (FRB + wasm)"
+"$ROOT_DIR/scripts/wellen_build.sh"
 
-echo "[full-build] Step 2: build Rust -> wasm"
-"$SCRIPT_DIR/build_rust_wasm.sh"
-
-echo "[full-build] Step 3: build extension (final)"
-bash "$ROOT_DIR/scripts/build_extension.sh"
+echo "[full-build] Step 2: build extension (Flutter web + package)"
+"$ROOT_DIR/scripts/extension_build.sh"
 
 echo "[full-build] Done"
