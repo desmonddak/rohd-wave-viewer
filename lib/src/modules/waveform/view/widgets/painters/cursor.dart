@@ -12,8 +12,11 @@ import 'package:flutter/material.dart';
 class Cursor extends CustomPainter {
   final redPaint = Paint()
     ..color = Colors.red
-    ..strokeWidth = 1
-    ..style = PaintingStyle.stroke;
+    ..strokeWidth = 1.5
+    ..style = PaintingStyle.stroke
+    ..isAntiAlias = true
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round;
 
   final Offset clickedOffset;
 

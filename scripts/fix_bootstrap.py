@@ -4,7 +4,7 @@ import os
 import sys
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-BUILD_BOOTSTRAP = os.path.join(SCRIPT_DIR, 'build', 'web', 'flutter_bootstrap.js')
+BUILD_BOOTSTRAP = os.path.join(SCRIPT_DIR, '..', 'build', 'web', 'flutter_bootstrap.js')
 
 if not os.path.exists(BUILD_BOOTSTRAP):
     print(f"Warning: {BUILD_BOOTSTRAP} not found. Has the Flutter web build completed?", file=sys.stderr)

@@ -1,6 +1,13 @@
+//! Copyright (C) 2026 Intel Corporation
+//! SPDX-License-Identifier: BSD-3-Clause
+//!
+//! api.rs
 //! API module for wellen bridge
 //!
 //! This module defines the public API that will be exposed to Dart via flutter_rust_bridge.
+//!
+//! 2026 January 03
+//! Author: Desmond Kirkpatrick <desmond.a.kirkpatrick@intel.com>
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

@@ -16,6 +16,6 @@ echo "[full-build] Step 2: build Rust -> wasm"
 "$SCRIPT_DIR/build_rust_wasm.sh"
 
 echo "[full-build] Step 3: build extension (final)"
-bash "$ROOT_DIR/build_extension.sh"
+bash "$ROOT_DIR/scripts/build_extension.sh"
 
 echo "[full-build] Done"

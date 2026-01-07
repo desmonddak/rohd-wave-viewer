@@ -72,7 +72,7 @@ This ensures `wasm-pack`, `cargo`, and other Rust tools are found first in the P
 Run the build script:
 
 ```bash
-./build_extension.sh
+./scripts/build_extension.sh
 ```
 
 This will:
@@ -150,7 +150,7 @@ flutter build web --release --target lib/main_web.dart
 The Flutter build output needs modifications for VS Code webview:
 
 ```bash
-python3 fix_bootstrap.py
+python3 scripts/fix_bootstrap.py
 ```
 
 This script:
@@ -274,7 +274,7 @@ This prevents the codec from attempting to create async worker threads.
   setenv PATH "$HOME/.cargo/bin:$PATH"
   ```
 
-- **Temporary**: Run build with explicit PATH: `export PATH="${HOME}/.cargo/bin:${PATH}" && ./build_extension.sh`
+- **Temporary**: Run build with explicit PATH: `export PATH="${HOME}/.cargo/bin:${PATH}" && ./scripts/build_extension.sh`
 
 ### "flutter_rust_bridge_codegen not found"
 

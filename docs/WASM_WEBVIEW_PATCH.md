@@ -50,7 +50,7 @@ On a local VS Code installation (not Remote):
 
 ## The Patch
 
-The build script (`build_extension.sh`) applies a two-part patch:
+The build script (`scripts/build_extension.sh`) applies a two-part patch:
 
 ### Part 1: WASM Binary Patch
 

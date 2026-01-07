@@ -8,6 +8,9 @@
 //
 // 2024 December
 
+// 2026 January 03
+// Author: Desmond Kirkpatrick <desmond.a.kirkpatrick@intel.com>
+
 // ignore_for_file: depend_on_referenced_packages
 import 'dart:async';
 import 'dart:convert';

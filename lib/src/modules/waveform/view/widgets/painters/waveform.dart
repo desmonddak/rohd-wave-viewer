@@ -14,16 +14,25 @@ import 'package:rohd_wave_viewer/src/const/layout.dart';
 abstract class Waveform extends CustomPainter {
   final greenPaint = Paint()
     ..color = Colors.green
-    ..strokeWidth = 1
-    ..style = PaintingStyle.stroke;
+    ..strokeWidth = 1.5
+    ..style = PaintingStyle.stroke
+    ..isAntiAlias = true
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round;
   final redPaint = Paint()
     ..color = Colors.red
-    ..strokeWidth = 1
-    ..style = PaintingStyle.stroke;
+    ..strokeWidth = 1.5
+    ..style = PaintingStyle.stroke
+    ..isAntiAlias = true
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round;
   final orangePaint = Paint()
     ..color = Colors.orange
-    ..strokeWidth = 1
-    ..style = PaintingStyle.stroke;
+    ..strokeWidth = 1.5
+    ..style = PaintingStyle.stroke
+    ..isAntiAlias = true
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round;
 
   final List<Data> waveform;
   final int

@@ -7,7 +7,6 @@ set -e
 echo "=== ROHD Wave Viewer Cleanup Script ==="
 echo ""
 
-# Clean Rust build
 echo "Cleaning Rust wellen_bridge build..."
 cd rust/wellen_bridge
 cargo clean
@@ -15,14 +14,12 @@ rm -rf target/
 echo "✓ Rust build cleaned"
 echo ""
 
-# Remove shared library from Flutter bundle
 echo "Removing libwellen_bridge.so from Flutter bundle..."
 rm -f ../../build/linux/x64/debug/bundle/lib/libwellen_bridge.so
 rm -f ../../build/linux/x64/release/bundle/lib/libwellen_bridge.so
 echo "✓ Shared library removed"
 echo ""
 
-# Clean Flutter build
 cd ../..
 echo "Cleaning Flutter build..."
 flutter clean

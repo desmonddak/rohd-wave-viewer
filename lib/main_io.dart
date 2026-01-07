@@ -4,6 +4,9 @@
 // main_io.dart
 // Native platform (IO) initialization for ROHD Wave Viewer.
 
+// 2026 January 03
+// Author: Desmond Kirkpatrick <desmond.a.kirkpatrick@intel.com>
+
 import 'dart:io';
 import 'package:module_structure_api/module_structure_api.dart';
 import 'package:rohd_wellen/rohd_wellen.dart';

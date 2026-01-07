@@ -4,6 +4,9 @@
 // external_library_io.dart
 // Native platform implementation - return null to use default loading
 
+// 2026 January 03
+// Author: Desmond Kirkpatrick <desmond.a.kirkpatrick@intel.com>
+
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Returns null on native platforms to let flutter_rust_bridge load the library normally.
