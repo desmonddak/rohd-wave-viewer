@@ -17,7 +17,7 @@ import 'package:rohd_wave_viewer/src/modules/waveform/bloc/waveform_module_bloc.
 import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/timescale.dart';
 import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/waveform_background.dart';
 import 'package:rohd_wave_viewer/src/const/const.dart';
-import 'package:rohd_wave_viewer/embed.dart';
+import '../../../platform/platform.dart' as plat;
 import 'dart:convert';
 
 // Conditional import: use web implementation on web, no-op on native platforms

@@ -20,7 +20,7 @@ import 'package:rohd_wave_viewer/app.dart';
 import 'package:module_structure_repository/module_structure_repository.dart';
 import 'package:rohd_wellen/rohd_wellen.dart';
 
-import 'embed.dart';
+import 'src/platform/platform.dart' as plat;
 
 /// Web-compatible wrapper that initializes WellenModuleStructureApi with bytes.
 class WebWellenApi {
