@@ -1,7 +1,16 @@
 #!/usr/bin/env python3
 import re
+import os
+import sys
 
-with open('/home/ganewto/src/rohd/rohd-wave-viewer/build/web/flutter_bootstrap.js', 'r') as f:
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BUILD_BOOTSTRAP = os.path.join(SCRIPT_DIR, 'build', 'web', 'flutter_bootstrap.js')
+
+if not os.path.exists(BUILD_BOOTSTRAP):
+    print(f"Warning: {BUILD_BOOTSTRAP} not found. Has the Flutter web build completed?", file=sys.stderr)
+    sys.exit(0)
+
+with open(BUILD_BOOTSTRAP, 'r') as f:
     content = f.read()
 
 # Add useLocalCanvasKit
@@ -15,7 +24,7 @@ content = re.sub(
     flags=re.DOTALL
 )
 
-with open('/home/ganewto/src/rohd/rohd-wave-viewer/build/web/flutter_bootstrap.js', 'w') as f:
+with open(BUILD_BOOTSTRAP, 'w') as f:
     f.write(content)
 
 print('Done')

@@ -168,10 +168,66 @@ ls -l web/pkg
   - `cargo install -f wasm-bindgen-cli` (if scripts call `wasm-bindgen` directly)
 - Install Binaryen (provides `wasm-opt`):
   - Ubuntu/Debian: `sudo apt install binaryen`
+ 
+### LLVM / Clang / Binaryen (needed for ffigen / wasm-opt)
+
+ffigen (used by `flutter_rust_bridge_codegen`) requires LLVM's libclang to parse C headers, and `wasm-opt` (from Binaryen) is used by `wasm-pack` for wasm optimizations. If these are missing you'll see errors like "ffigen could not find LLVM" or failed Binaryen downloads.
+
+Install on Debian/Ubuntu:
+
+```bash
+sudo apt update
+sudo apt install -y clang libclang-dev llvm-dev binaryen
+```
+
+On Fedora/RHEL:
+
+```bash
+sudo dnf install clang llvm-devel libclang-devel binaryen
+```
+
+On macOS (Homebrew):
+
+```bash
+brew install llvm binaryen
+# Then export LIBCLANG_PATH to the lib dir, for example:
+export LIBCLANG_PATH="$(brew --prefix llvm)/lib"
+```
+
+If LLVM or Binaryen are installed in a custom location, set `LIBCLANG_PATH` to the directory containing `libclang.so` (or `libclang.dylib` on macOS) before running the build script.
 - Node (recommended modern LTS):
   - Use `nvm` to install Node 18+: `curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.4/install.sh | bash` then `nvm install --lts`.
+  - Alternatively on Debian/Ubuntu you can install via apt:
+
+```bash
+sudo apt update
+sudo apt install -y nodejs npm
+```
+
+Note: system package managers may ship older Node versions. `nvm` is recommended for installing a modern LTS (Node 18+).
 - Flutter SDK:
   - Download stable from flutter.dev and extract to `/opt/flutter` or a user-writable location, then add to PATH.
+
+---
+
+## Rust permissions and per-user installs
+
+- Problem: If `~/.cargo` or `~/.rustup` are owned by `root` (often from running installers with `sudo`), `cargo install` will fail or install into `/root/.cargo`, leading to permission problems.
+- Quick fix: change ownership to your user:
+
+```bash
+sudo chown -R $(id -u):$(id -g) $HOME/.cargo $HOME/.rustup
+```
+
+- Alternative: use per-shell overrides to keep cargo/rustup in a user-writable location without changing global defaults:
+
+```bash
+export CARGO_HOME="$HOME/.cargo"
+export RUSTUP_HOME="$HOME/.rustup"
+export PATH="$CARGO_HOME/bin:$PATH"
+```
+
+- If you see build scripts that attempted to install tools globally (using `sudo`), prefer re-running them as your user after fixing ownership or updating the environment above.
 
 ---
 

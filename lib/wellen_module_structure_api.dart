@@ -9,7 +9,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:module_structure_api/module_structure_api.dart';
-import 'src/file_utils.dart';
+import 'src/platform/platform.dart' as plat;
 import 'src/generated/api.dart' as rust;
 import 'src/rust/wellen_helpers.dart' as helpers;
 
@@ -19,7 +19,7 @@ class WellenModuleStructureApi extends ModuleStructureApi {
   List<String> _allSignalIds = [];
 
   Future<void> loadFile(String filePath) async {
-    final bytes = await readFileBytes(filePath);
+    final bytes = await plat.readFileBytes(filePath);
     await rust.loadWaveformFromBytes(bytes: bytes, fileName: filePath);
     _loadedFilePath = filePath;
     _cachedStructure = await rust.getWaveformStructure();

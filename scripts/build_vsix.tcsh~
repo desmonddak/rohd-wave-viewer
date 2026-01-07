@@ -1,0 +1,36 @@
+#!/bin/tcsh -v
+# Create a .vsix of the VS Code extension (tcsh-compatible)
+set PKG_DIR=`mktemp -d`
+if ( ! -d "$PKG_DIR" ) then
+  echo "Failed to create temp dir"
+  exit 1
+endif
+
+# Copy extension package files
+mkdir -p "$PKG_DIR/extension"
+cp -r vscode-ext-package/extension/* "$PKG_DIR/extension/"
+
+# Copy compiled JS if available
+mkdir -p "$PKG_DIR/out"
+if ( -f vscode-extension/out/extension.js ) then
+  cp -r vscode-extension/out/* "$PKG_DIR/out/"
+endif
+
+# Copy web build if available
+if ( -d build/web ) then
+  mkdir -p "$PKG_DIR/media"
+  cp -r build/web "$PKG_DIR/media/flutter_web"
+endif
+
+set OLDPWD=`pwd`
+cd "$PKG_DIR"
+zip -r "$OLDPWD/rohd-wave-viewer.vsix" extension > /dev/null
+set rc=$status
+cd "$OLDPWD"
+rm -rf "$PKG_DIR"
+if ( -f rohd-wave-viewer.vsix ) then
+  ls -lh rohd-wave-viewer.vsix
+else
+  echo "Failed to create rohd-wave-viewer.vsix"
+  exit 1
+endif

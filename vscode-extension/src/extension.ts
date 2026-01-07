@@ -86,7 +86,13 @@ class VcdCustomEditorProvider implements vscode.CustomTextEditorProvider {
       if (msg && msg.type === 'rohdReady') {
         output.appendLine('Received rohdReady from webview');
         readyReceived = true;
-        sendContents();
+        // Only send VCD contents if the webview reports successful WASM init
+        const wasmOk = msg.info && msg.info.wasm === true;
+        if (!wasmOk) {
+          output.appendLine('Webview reported WASM initialization FAILED; not sending VCD bytes.');
+        } else {
+          sendContents();
+        }
       }
       // Forward console messages from the webview shim to the extension output
       if (msg && msg.type === 'console') {

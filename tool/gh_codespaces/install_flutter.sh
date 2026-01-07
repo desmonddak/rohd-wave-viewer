@@ -15,8 +15,22 @@
 set -euo pipefail
 
 wget -O /tmp/flutter_linux.tar.xz https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.19.5-stable.tar.xz
-cd /usr/local
-sudo tar -xf /tmp/flutter_linux.tar.xz
-echo 'export PATH="$PATH:/usr/local/flutter/bin"' >> ~/.bashrc
+
+# If running as root, install to /usr/local (typical for container images). If
+# running as a regular user, extract to $HOME/flutter to avoid needing sudo.
+if [ "$(id -u)" -eq 0 ]; then
+	echo "Installing Flutter to /usr/local/flutter (running as root)"
+	cd /usr/local
+	tar -xf /tmp/flutter_linux.tar.xz
+	profile_path="/etc/profile.d/flutter.sh"
+	echo 'export PATH="$PATH:/usr/local/flutter/bin"' > "$profile_path"
+	echo "Wrote PATH to $profile_path"
+else
+	echo "Installing Flutter to $HOME/flutter (no sudo required)"
+	mkdir -p "$HOME/flutter"
+	tar -xf /tmp/flutter_linux.tar.xz -C "$HOME"
+	# Add to user's bashrc
+	echo 'export PATH="$PATH:$HOME/flutter/bin"' >> ~/.bashrc
+fi
 
 rm /tmp/flutter_linux.tar.xz

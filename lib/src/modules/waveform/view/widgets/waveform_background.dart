@@ -22,8 +22,7 @@ import 'dart:async';
 
 // Use platform-specific JS bindings: web implementation calls into JS,
 // native implementation is a no-op.
-import '../../../../platform/js_bindings_io.dart'
-    if (dart.library.js_interop) '../../../../platform/js_bindings_web.dart';
+import '../../../../platform/platform.dart' as plat;
 
 enum SignalType { binary, hexadecimal }
 
@@ -146,7 +145,7 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
 
   void _callJsForceRepaint() {
     try {
-      jsRohdForceRepaint();
+      plat.jsRohdForceRepaint();
     } catch (e) {
       debugPrint('[WaveformBackground] JS force repaint error: $e');
     }
@@ -154,7 +153,7 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
 
   void _requestBrowserAnimationFrame() {
     try {
-      jsRequestAnimationFrame(() {});
+      plat.jsRequestAnimationFrame(() {});
     } catch (_) {}
   }
 
