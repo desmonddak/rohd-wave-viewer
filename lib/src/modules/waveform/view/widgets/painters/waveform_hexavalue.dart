@@ -8,12 +8,13 @@
 // Author: Yao Jing Quek <yao.jing.quek@intel.com>
 
 import 'package:flutter/material.dart';
-import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/painters/waveform.dart';
-import 'package:rohd_wave_viewer/src/const/layout.dart';
+import 'waveform.dart' show Waveform;
+import 'package:rohd_wave_viewer/src/const/const.dart';
 
 class WaveformHexaValue extends Waveform {
   WaveformHexaValue(super.waveform, super.finalTime, super.startTime,
-      {super.leftOffset = waveformLeftOffset,
+      {super.signalWidth,
+      super.leftOffset = waveformLeftOffset,
       super.viewportWidth = 0.0,
       super.scrollOffset = 0.0,
       super.timescale = 0,

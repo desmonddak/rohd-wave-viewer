@@ -10,8 +10,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rohd_wave_viewer/src/const/const.dart';
-import 'package:rohd_wave_viewer/src/modules/shared/widgets/panel_header.dart';
-import 'package:rohd_wave_viewer/src/modules/shared/widgets/signal_tab_container.dart';
+import 'package:rohd_wave_viewer/src/modules/shared/widgets/widgets.dart';
 import 'package:rohd_wave_viewer/src/modules/signal/bloc/signal_bloc.dart';
 import 'package:rohd_wave_viewer/src/modules/waveform/bloc/waveform_module_bloc.dart';
 import 'package:rohd_wave_viewer/src/modules/rohd_module/bloc/rohd_module_bloc.dart'
@@ -59,20 +58,35 @@ class SignalValuePanel extends StatelessWidget {
     final signalBloc = BlocProvider.of<SignalBloc>(context);
     final monitorSignalList = signalBloc.state.monitorSignalsList;
 
-    final valueList = [];
+    final List<String> valueList = <String>[];
 
     for (final signal in monitorSignalList) {
       final scaleTime = state.timePs;
-      final val = signal.getValueByTime(scaleTime);
-      valueList.add(val);
+      final String val = signal.getValueByTime(scaleTime);
+      // Format numeric values as hexadecimal by default; keep 'x'/'z' as-is.
+      String formatted = val;
+      final lower = val.toLowerCase();
+      if (!lower.contains('x') && !lower.contains('z')) {
+        final parsed = int.tryParse(val);
+        if (parsed != null) {
+          // Use signal width (bits) if available to pad hex representation
+          final width = signal.width ?? 0;
+          // Number of hex digits needed
+          final int hexDigits = (width <= 0) ? 0 : ((width + 3) ~/ 4);
+          final hex = parsed.toRadixString(16).toUpperCase();
+            formatted =
+              '0x${hexDigits > 0 ? hex.padLeft(hexDigits, '0') : hex}';
+        }
+      }
+      valueList.add(formatted);
     }
 
     return ListView.builder(
       controller: scrollController,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: monitorSignalList.length + 1,
+      itemCount: valueList.length + 1,
       itemBuilder: (context, index) {
-        if (index == monitorSignalList.length) {
+        if (index == valueList.length) {
           return const SignalTabContainer(containerBody: Text(''));
         }
         final value = valueList[index];

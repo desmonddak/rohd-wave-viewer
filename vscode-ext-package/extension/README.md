@@ -1,3 +1,21 @@
+Short description: Packaging/template assets for the VS Code extension
+
+This folder holds the packaging and template assets used when building or packaging the extension.
+
+- `vscode-ext-package/extension/` contains static files (README, media, manifest, icons) that are copied into the final extension package.
+- The TypeScript source and compilation live under `vscode-extension/`.
+
+Packaging workflow summary:
+
+1. Compile the TypeScript in `vscode-extension`:
+
+   npm --prefix vscode-extension run compile
+
+2. The packaging step copies this folder's contents (assets and manifest) plus the compiled JS from `vscode-extension/out/` into the extension target directory. See `scripts/build_extension.sh` and `scripts/build_vsix.tcsh`.
+
+Notes:
+
+- Keep static assets here. The build scripts expect to find packaging assets in this folder.
 ROHD Wave Viewer VS Code Extension
 
 This folder contains a minimal VS Code extension that hosts the Flutter web build (from `build/web`) inside a Webview.

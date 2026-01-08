@@ -49,137 +49,25 @@
     window._rohdRepaintCounter = 0;
 
     // Function to force the WebView compositor to present a frame
-    // Called from Dart after zoom operations
+    // Called from Dart after zoom operations. Simplified to reduce overhead.
     window.rohdForceRepaint = function() {
       window._rohdRepaintCounter++;
       
-      // Find the flutter container elements
-      var flutterView = document.querySelector('flutter-view') || 
-                        document.querySelector('flt-glass-pane') ||
-                        document.body;
       var canvases = document.querySelectorAll('canvas');
       
-      // Strategy 1: Add/remove a tiny DOM element to force layout recalculation
-      var nudge = document.createElement('div');
-      nudge.id = 'rohd-nudge-' + window._rohdRepaintCounter;
-      nudge.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;pointer-events:none;z-index:99999;background:transparent;';
-      document.body.appendChild(nudge);
-      requestAnimationFrame(function() {
-        try { nudge.remove(); } catch(e) {}
-      });
-      
-      // Strategy 2: Touch the canvas transform in a way that's visible to compositor
-      canvases.forEach(function(canvas, idx) {
-        // Add a tiny translateZ with a changing value to force GPU recalculation
+      // Strategy 1: Touch the canvas transform to force GPU recalculation
+      canvases.forEach(function(canvas) {
         var z = (window._rohdRepaintCounter % 2 === 0) ? '0.001px' : '0.002px';
         canvas.style.transform = 'translateZ(' + z + ')';
-        canvas.style.willChange = 'transform, contents';
         void canvas.offsetHeight; // Force sync reflow
       });
 
-      // Strategy 3: Change body class with a unique counter value
-      document.body.setAttribute('data-rohd-repaint', window._rohdRepaintCounter.toString());
-      
-      // Strategy 4: Force focus cycling
-      try {
-        var activeEl = document.activeElement;
-        window.focus();
-        if (canvases.length > 0) {
-          canvases[0].focus();
-        }
-        requestAnimationFrame(function() {
-          if (activeEl && activeEl.focus) activeEl.focus();
-        });
-      } catch(e) {}
-
-      // Strategy 5: Post a message to self (sometimes wakes up event loop)
-      try {
-        window.postMessage({type: 'rohd-repaint-nudge', counter: window._rohdRepaintCounter}, '*');
-      } catch(e) {}
-
-      // Strategy 6: Force multiple animation frames with DOM changes
-      requestAnimationFrame(function frame1() {
-        document.body.style.opacity = '0.9999';
-        void document.body.offsetHeight;
-        requestAnimationFrame(function frame2() {
-          document.body.style.opacity = '1';
-          void document.body.offsetHeight;
-          requestAnimationFrame(function frame3() {
-            // Reset canvas transforms
-            canvases.forEach(function(canvas) {
-              canvas.style.transform = '';
-              canvas.style.willChange = 'auto';
-            });
-          });
-        });
-      });
-
-      // Strategy 7: Canvas size reset trick - forces WebGL context to redraw
-      // This is known to work when other methods fail
-      canvases.forEach(function(canvas) {
-        var origWidth = canvas.width;
-        var origHeight = canvas.height;
-        if (origWidth > 0 && origHeight > 0) {
-          // Briefly change canvas size to force invalidation
-          canvas.width = origWidth + 1;
-          canvas.height = origHeight + 1;
-          // Restore immediately in next frame
-          requestAnimationFrame(function() {
-            canvas.width = origWidth;
-            canvas.height = origHeight;
-          });
-        }
-      });
-
-      // Strategy 8: Dispatch resize event (forces Flutter to recalculate layout)
-      window.dispatchEvent(new Event('resize'));
-
-      // Strategy 9: Send a message to the VS Code extension host and wait for response
-      // The round-trip through the extension host may wake up the compositor
-      try {
-        if (typeof acquireVsCodeApi !== 'undefined' || window.postRohd) {
-          var vscodeApi = window._vscodeApi || (typeof acquireVsCodeApi !== 'undefined' ? acquireVsCodeApi() : null);
-          if (vscodeApi) {
-            window._vscodeApi = vscodeApi; // Cache it
-            vscodeApi.postMessage({ type: 'requestRepaint', counter: window._rohdRepaintCounter });
-          } else if (window.postRohd) {
-            window.postRohd({ type: 'requestRepaint', counter: window._rohdRepaintCounter });
-          }
-        }
-      } catch(e) {
-        console.debug('Could not send repaint request to extension:', e);
-      }
-
-      // Strategy 10: Simulate pointer leave/enter sequence
-      // This mimics what happens when the mouse actually leaves and enters the window
-      try {
+      // Strategy 2: Single animation frame to reset transforms
+      requestAnimationFrame(function() {
         canvases.forEach(function(canvas) {
-          var rect = canvas.getBoundingClientRect();
-          var leaveEvent = new PointerEvent('pointerleave', {
-            bubbles: false,
-            cancelable: false,
-            clientX: rect.left + rect.width / 2,
-            clientY: rect.top + rect.height / 2,
-            pointerType: 'mouse',
-            isPrimary: true
-          });
-          canvas.dispatchEvent(leaveEvent);
-          
-          requestAnimationFrame(function() {
-            var enterEvent = new PointerEvent('pointerenter', {
-              bubbles: false,
-              cancelable: false,
-              clientX: rect.left + rect.width / 2,
-              clientY: rect.top + rect.height / 2,
-              pointerType: 'mouse',
-              isPrimary: true
-            });
-            canvas.dispatchEvent(enterEvent);
-          });
+          canvas.style.transform = '';
         });
-      } catch(e) {}
-
-      // Strategy 11 removed - Ctrl-based handling removed in favor of Shift+wheel
+      });
     };
 
     // Initialize WASM first, then load Flutter via flutter_bootstrap.js

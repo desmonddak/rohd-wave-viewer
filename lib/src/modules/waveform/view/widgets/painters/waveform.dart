@@ -9,7 +9,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:module_structure_api/module_structure_api.dart';
-import 'package:rohd_wave_viewer/src/const/layout.dart';
+import 'package:rohd_wave_viewer/src/const/const.dart';
 
 abstract class Waveform extends CustomPainter {
   final greenPaint = Paint()
@@ -38,13 +38,15 @@ abstract class Waveform extends CustomPainter {
   final int
       finalTime; // Visible time range (kept for compatibility, but use timescale for mapping)
   final int startTime; // Visible start time (kept for compatibility)
+  final int? signalWidth; // optional declared width for the signal
   final double leftOffset; // Left offset to align with timescale
   final double viewportWidth; // visible viewport width in pixels
   final double scrollOffset; // horizontal scroll offset in pixels
   final int timescale; // Full timescale for absolute time mapping
 
   Waveform(this.waveform, this.finalTime, this.startTime,
-      {this.leftOffset = waveformLeftOffset,
+      {this.signalWidth,
+      this.leftOffset = waveformLeftOffset,
       this.viewportWidth = 0.0,
       this.scrollOffset = 0.0,
       this.timescale = 0,

@@ -9,10 +9,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:rohd_wave_viewer/src/const/locales.dart';
-import 'package:rohd_wave_viewer/src/modules/shared/widgets/signal_tab_container.dart';
+import 'package:rohd_wave_viewer/src/const/const.dart';
+import 'package:rohd_wave_viewer/src/modules/shared/widgets/widgets.dart';
 import 'package:rohd_wave_viewer/src/modules/signal/bloc/signal_bloc.dart';
-import 'package:rohd_wave_viewer/src/modules/shared/widgets/panel_header.dart';
 
 class SelectedSignalsPanel extends StatelessWidget {
   final ScrollController? scrollController;

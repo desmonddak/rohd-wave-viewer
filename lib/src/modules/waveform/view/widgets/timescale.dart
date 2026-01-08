@@ -8,7 +8,7 @@
 // Author: Yao Jing Quek <yao.jing.quek@intel.com>
 
 import 'package:flutter/material.dart';
-import 'package:rohd_wave_viewer/src/const/layout.dart';
+import 'package:rohd_wave_viewer/src/const/const.dart';
 
 class TimescaleWidget extends StatelessWidget {
   final double zoomLevel;

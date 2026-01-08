@@ -8,7 +8,7 @@
 // Author: Yao Jing Quek <yao.jing.quek@intel.com>
 
 import 'package:flutter/material.dart';
-import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/painters/cursor.dart';
+import 'painters/cursor.dart';
 
 class CursorWidget extends StatelessWidget {
   final Offset position;

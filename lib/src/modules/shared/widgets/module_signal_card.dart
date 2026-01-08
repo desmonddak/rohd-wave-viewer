@@ -10,7 +10,7 @@
 import 'package:devtools_app_shared/ui.dart';
 import 'package:flutter/material.dart';
 
-import '../../../const/colors.dart';
+import 'package:rohd_wave_viewer/src/const/colors.dart';
 
 class ModuleSignalCard extends StatelessWidget {
   final Widget cardBody;

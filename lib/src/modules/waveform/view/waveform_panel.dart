@@ -14,10 +14,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rohd_wave_viewer/src/modules/rohd_module/bloc/rohd_module_bloc.dart';
 import 'package:rohd_wave_viewer/src/modules/signal/bloc/signal_bloc.dart';
 import 'package:rohd_wave_viewer/src/modules/waveform/bloc/waveform_module_bloc.dart';
-import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/timescale.dart';
-import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/waveform_background.dart';
+import 'widgets/timescale.dart';
+import 'widgets/waveform_background.dart';
 import 'package:rohd_wave_viewer/src/const/const.dart';
-import '../../../platform/platform.dart' as plat;
+import 'package:rohd_wave_viewer/src/platform/platform.dart' as plat;
 import 'dart:convert';
 
 // Conditional import: use web implementation on web, no-op on native platforms
@@ -52,6 +52,8 @@ class _WaveformPanelState extends State<WaveformPanel>
   double _trackedScrollOffset =
       0.0; // Track scroll offset for zoom calculations
   bool _scrollRebuildPending = false;
+  // Guard to prevent scroll listener from overwriting _trackedScrollOffset during zoom
+  bool _zoomInProgress = false;
 
   // Panning state (reserved for future use)
   Offset? _lastPanPosition;
@@ -179,7 +181,9 @@ class _WaveformPanelState extends State<WaveformPanel>
 
   void _onHorizontalScroll() {
     // Update tracked scroll offset synchronously for zoom math and
-    // schedule a single rebuild per frame to avoid excessive rebuilds
+    // schedule a single rebuild per frame to avoid excessive rebuilds.
+    // Skip if a zoom operation is in progress to prevent race conditions.
+    if (_zoomInProgress) return;
     if (_horizontalScrollController.hasClients) {
       _trackedScrollOffset = _horizontalScrollController.offset;
     }
@@ -216,124 +220,143 @@ class _WaveformPanelState extends State<WaveformPanel>
 
   /// Force multiple frame updates to ensure the compositor presents the frame.
   /// This is necessary in embedded webviews where single frame requests may be deferred.
-  void _forceMultipleFrameUpdates([int frames = 5]) {
+  /// If [onComplete] is provided, it will be called after all frames are done.
+  void _forceMultipleFrameUpdates([int frames = 2, VoidCallback? onComplete]) {
     // Immediately call the JS force repaint before scheduling frames
     _callJsForceRepaint();
     _forceRepaintFrames = frames;
+    _forceRepaintOnComplete = onComplete;
     _scheduleNextForceFrame();
   }
 
+  VoidCallback? _forceRepaintOnComplete;
+
   void _scheduleNextForceFrame() {
-    if (_forceRepaintFrames <= 0 || !mounted) return;
+    if (_forceRepaintFrames <= 0 || !mounted) {
+      // All frames done - call completion callback
+      final callback = _forceRepaintOnComplete;
+      _forceRepaintOnComplete = null;
+      callback?.call();
+      return;
+    }
     _forceRepaintFrames--;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() {}); // Trigger a rebuild
       // Call JS force repaint on each frame
       _callJsForceRepaint();
-      try {
-        final bgState = _backgroundKey.currentState as dynamic;
-        bgState?.forceRepaint?.call();
-      } catch (_) {}
+      // Note: removed bgState?.forceRepaint call to avoid cascading timer loops
       _scheduleNextForceFrame();
     });
   }
 
+  // Pending scroll offset to apply after layout - used for atomic zoom+scroll
+  double? _pendingScrollOffset;
+
   void _zoomWithPreservedPosition(double factor, {double? focalViewportX}) {
-    // Get current scroll fraction before zooming
-    double scrollFraction = 0.0;
-    if (_horizontalScrollController.hasClients) {
-      final maxExtent = _horizontalScrollController.position.maxScrollExtent;
-      if (maxExtent > 0) {
-        scrollFraction = _horizontalScrollController.offset / maxExtent;
+    // Guard against concurrent zoom operations (prevents race conditions)
+    if (_zoomInProgress) return;
+    _zoomInProgress = true;
+
+    try {
+      // Capture ALL state needed for zoom calculations SYNCHRONOUSLY
+      // before any async operations, setState, or callbacks.
+      final double oldZoom = _zoomLevel;
+      final double currentScrollOffset = _trackedScrollOffset;
+
+      // Determine the new zoom level (clamped)
+      final double newZoom = (oldZoom * factor).clamp(1.0, 100000.0);
+      final double scale = newZoom / oldZoom;
+
+      // Get the viewport width from the last known actual width
+      final double viewportWidth = _lastActualWidth ?? 800.0;
+
+      // Compute max scroll extents using the correct formula:
+      // maxScrollExtent = viewportWidth * (zoomLevel - 1)
+      // This is because content width = viewportWidth * zoomLevel
+      // and maxScroll = contentWidth - viewportWidth
+      final double oldMaxExtent = viewportWidth * (oldZoom - 1.0);
+      final double newMaxExtent = viewportWidth * (newZoom - 1.0);
+
+      double targetScrollOffset;
+
+      if (focalViewportX != null) {
+        // Focal point zoom: keep the same content position under the cursor
+        //
+        // oldContentX = currentScrollOffset + focalViewportX
+        // After zoom, this content position scales: newContentX = oldContentX * scale
+        // To keep this under the same viewport position:
+        // newScrollOffset = newContentX - focalViewportX
+        //                 = (currentScrollOffset + focalViewportX) * scale - focalViewportX
+        //                 = currentScrollOffset * scale + focalViewportX * (scale - 1)
+        final double oldContentX = currentScrollOffset + focalViewportX;
+        final double newContentX = oldContentX * scale;
+        targetScrollOffset =
+            (newContentX - focalViewportX).clamp(0.0, newMaxExtent);
+      } else {
+        // No focal point: preserve scroll fraction
+        final double scrollFraction =
+            oldMaxExtent > 0 ? currentScrollOffset / oldMaxExtent : 0.0;
+        targetScrollOffset =
+            (scrollFraction * newMaxExtent).clamp(0.0, newMaxExtent);
       }
+
+      // Store the pending scroll offset - will be applied in build() after layout
+      // This ensures the scroll position is set BEFORE painters run
+      _pendingScrollOffset = targetScrollOffset;
+      _trackedScrollOffset = targetScrollOffset;
+
+      // Update zoom level - triggers rebuild where we'll apply the scroll
+      setState(() {
+        _zoomLevel = newZoom;
+      });
+
+      // After layout, finalize and force repaint for webviews
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _finalizeZoomScroll(targetScrollOffset, newMaxExtent);
+      });
+    } catch (e) {
+      _zoomInProgress = false;
+      rethrow;
+    }
+  }
+
+  /// Finalize scroll position after zoom layout settles.
+  /// This corrects any minor discrepancy from our pre-layout estimate.
+  void _finalizeZoomScroll(double targetOffset, double estimatedMaxExtent) {
+    if (!_horizontalScrollController.hasClients) {
+      _zoomInProgress = false;
+      return;
     }
 
-    // Compute old/current state for focal math before changing zoom
-    final double oldZoom = _zoomLevel;
-    // Use the tracked scroll offset (which is updated after each zoom)
-    // rather than reading from the controller, since jumpTo() is asynchronous
-    final double currentScrollOffset = _trackedScrollOffset;
+    final double actualMaxExtent =
+        _horizontalScrollController.position.maxScrollExtent;
 
-    // If focalViewportX is not provided, we will preserve scroll fraction.
-    // Otherwise, compute the content X under the focal point and adjust
-    // the scroll offset after zoom so the same content pixel remains
-    // under the same viewport X.
-    final double? oldContentX = (focalViewportX != null)
-        ? (currentScrollOffset + focalViewportX)
-        : null;
+    // Determine the final scroll position
+    double finalOffset;
+    if ((actualMaxExtent - estimatedMaxExtent).abs() < 1.0) {
+      // Estimate was good, just clamp to actual extent
+      finalOffset = targetOffset.clamp(0.0, actualMaxExtent);
+    } else {
+      // Estimate was off - recompute proportionally
+      finalOffset = estimatedMaxExtent > 0
+          ? (targetOffset * actualMaxExtent / estimatedMaxExtent)
+              .clamp(0.0, actualMaxExtent)
+          : 0.0;
+    }
 
-    // Determine the new zoom level (clamped)
-    final double intendedNewZoom = (oldZoom * factor);
-    final double newZoom = intendedNewZoom.clamp(1.0, 100000.0);
+    // Apply scroll position if needed
+    final double currentOffset = _horizontalScrollController.offset;
+    if ((finalOffset - currentOffset).abs() > 0.5) {
+      _trackedScrollOffset = finalOffset;
+      _horizontalScrollController.jumpTo(finalOffset);
+    }
 
-    setState(() {
-      _zoomLevel = newZoom;
-    });
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // After layout settles, compute new offsets
-      if (!_horizontalScrollController.hasClients) {
-        // If controller not ready yet, retry next frame
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _restoreScrollFraction(scrollFraction);
-        });
-        return;
-      }
-
-      final double newMaxExtent =
-          _horizontalScrollController.position.maxScrollExtent;
-
-      // Shared variable for the offset we will jump to after zoom
-      double finalNewOffset = 0.0;
-
-      if (oldContentX == null) {
-        // No focal point: preserve previous scroll fraction
-        finalNewOffset =
-            (scrollFraction * newMaxExtent).clamp(0.0, newMaxExtent);
-        try {
-          _trackedScrollOffset = finalNewOffset;
-          // Use animateTo with very short duration instead of jumpTo
-          // This triggers the animation frame cycle which helps with WebView repaint
-          _horizontalScrollController.animateTo(
-            finalNewOffset,
-            duration: const Duration(milliseconds: 1),
-            curve: Curves.linear,
-          );
-          // Force multiple frame updates to ensure repaint in embedded webviews
-          _forceMultipleFrameUpdates();
-        } catch (_) {}
-        return;
-      }
-
-      // With focal point: do focal-point zoom to keep the cursor at the same screen X
-      // The marker's TIME stays constant (stored in BLoC), and its screen position
-      // is derived automatically from the new visible time range.
-      final double scale = (newZoom / oldZoom);
-      const double left = waveformLeftOffset;
-
-      // Compute drawing X relative to left offset and clamp to >= 0
-      final double oldDrawingX =
-          (oldContentX - left).clamp(0.0, double.infinity);
-      final double newDrawingX = oldDrawingX * scale;
-      final double newContentX = left + newDrawingX;
-
-      // Focal-point zoom: keep the same content pixel under the same viewport X
-      finalNewOffset =
-          (newContentX - focalViewportX!).clamp(0.0, newMaxExtent).toDouble();
-
-      try {
-        _trackedScrollOffset = finalNewOffset;
-        // Use animateTo with very short duration instead of jumpTo
-        // This triggers the animation frame cycle which helps with WebView repaint
-        _horizontalScrollController.animateTo(
-          finalNewOffset,
-          duration: const Duration(milliseconds: 1),
-          curve: Curves.linear,
-        );
-        // Force multiple frame updates to ensure repaint in embedded webviews
-        _forceMultipleFrameUpdates();
-      } catch (_) {}
+    // Force repaint for embedded webviews.
+    // Keep _zoomInProgress true until all frames complete to prevent
+    // the scroll listener from interfering during the repaint frames.
+    _forceMultipleFrameUpdates(2, () {
+      _zoomInProgress = false;
     });
   }
 
@@ -698,6 +721,24 @@ class _WaveformPanelState extends State<WaveformPanel>
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   _restoreScrollFraction(scrollFraction);
                 });
+              }
+
+              // Apply pending scroll offset from zoom operation.
+              // This happens during build, after layout constraints are known
+              // but before paint, ensuring atomic zoom+scroll visual update.
+              if (_pendingScrollOffset != null &&
+                  _horizontalScrollController.hasClients) {
+                final pending = _pendingScrollOffset!;
+                _pendingScrollOffset = null;
+                // Use correctPixels to update position synchronously without
+                // triggering notifications or bounds checking. This ensures
+                // the scroll position is correct when painters run.
+                final position = _horizontalScrollController.position;
+                // Calculate actual max extent based on new zoomed width
+                final maxExtent = (zoomedWidth - actualWidth).clamp(0.0, double.infinity);
+                final clampedOffset = pending.clamp(0.0, maxExtent);
+                position.correctPixels(clampedOffset);
+                _trackedScrollOffset = clampedOffset;
               }
 
               // Calculate visible time range for timescale

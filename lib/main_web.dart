@@ -8,9 +8,6 @@
 //
 // 2024 December
 
-// 2026 January 03
-// Author: Desmond Kirkpatrick <desmond.a.kirkpatrick@intel.com>
-
 // ignore_for_file: depend_on_referenced_packages
 import 'dart:async';
 import 'dart:convert';
@@ -130,8 +127,8 @@ void main() async {
                 }
               } catch (e) {
                 debugPrint('[WebMain] Error handling message: $e');
-                }
-              })
+              }
+            })
           ]);
         }
       } catch (e) {
@@ -146,10 +143,11 @@ void main() async {
   // If `wasmInitOk` is available in the JS interop environment, include it
   // in the readiness signal; otherwise omit the field.
   // Include the `wasm` boolean if present on the global object.
-    try {
+  try {
     final wasmFlag = plat.getProperty(plat.globalThis, 'wasmInitOk');
     if (wasmFlag != null) {
-      plat.signalEmbedReady({'platform': 'web', 'version': '1.0.0', 'wasm': wasmFlag});
+      plat.signalEmbedReady(
+          {'platform': 'web', 'version': '1.0.0', 'wasm': wasmFlag});
     } else {
       plat.signalEmbedReady({'platform': 'web', 'version': '1.0.0'});
     }

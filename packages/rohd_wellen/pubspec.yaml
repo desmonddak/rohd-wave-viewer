@@ -8,7 +8,7 @@ issue_tracker: https://github.com/intel/rohd-wellen/issues
 publish_to: none
 
 environment:
-  sdk: '>=3.3.0 <4.0.0'
+  sdk: '>=3.4.0 <4.0.0'
 
 dependencies:
   flutter_rust_bridge: 2.7.0

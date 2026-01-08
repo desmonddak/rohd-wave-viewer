@@ -24,6 +24,8 @@ export PATH="${HOME}/.cargo/bin:${PATH}"
 
 This ensures `wasm-pack`, `cargo`, and other Rust tools are found first in the PATH.
 
+Note: the build scripts will also look for tools directly under `$CARGO_HOME/bin` and `$HOME/.cargo/bin` as fallbacks when a tool is not found on `PATH`. This helps in environments where `PATH` hasn't been exported in the same shell session.
+
 ### Required Tools
 
 1. **Flutter SDK** (3.3.0 or later)
@@ -51,6 +53,8 @@ This ensures `wasm-pack`, `cargo`, and other Rust tools are found first in the P
 3. **wasm-pack** (Rust WASM compilation tool - installs to ~/.cargo/bin)
 
    ```bash
+   # Install for the current user (no sudo)
+   export CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}"; export PATH="$CARGO_HOME/bin:$PATH"
    cargo install wasm-pack
    ```
 
@@ -83,6 +87,14 @@ This will:
 4. Compile the VS Code extension TypeScript
 5. Install the extension to `~/.vscode/extensions/`
 
+Note about extension layout:
+
+- The repository separates the TypeScript **source** from the **packaging/template assets**:
+   - `vscode-extension/` is the TypeScript source and contains the compiled `out/` JS when you run `npm run compile`. See [vscode-extension/README.md](vscode-extension/README.md).
+   - `vscode-ext-package/extension/` contains packaging assets (manifest, media) that are copied into the final extension. See [vscode-ext-package/extension/README.md](vscode-ext-package/extension/README.md).
+
+The build scripts compile the TypeScript in `vscode-extension` and copy assets from `vscode-ext-package/extension` plus the compiled JS into the target extension directory.
+
 ## Manual Build Steps
 
 ### Step 1: Build WASM Bindings
@@ -90,7 +102,9 @@ This will:
 Before building, ensure the Rust tools are in your PATH:
 
 ```bash
-export PATH="${HOME}/.cargo/bin:${PATH}"
+export CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}"
+export RUSTUP_HOME="${RUSTUP_HOME:-$HOME/.rustup}"
+export PATH="$CARGO_HOME/bin:${PATH}"
 ```
 
 **For tcsh shell**, use `setenv` instead:
@@ -119,6 +133,20 @@ cd ../..
 - This directory must be in your PATH for the shell to find `wasm-pack`
 - The build prepends this path to ensure these tools are found first
 - On tcsh, use `setenv` instead of `export`
+
+### Ownership & permission notes
+
+- If `cargo install` fails with permission errors or the build scripts report trying to use `/opt` paths, it usually means a previous install was run as `root` and created root-owned files under `$HOME/.cargo` or `$HOME/.rustup` (or the environment variables point to a system location). Fix by running:
+
+```bash
+sudo chown -R $(id -u):$(id -g) $HOME/.cargo $HOME/.rustup
+```
+
+- Re-run the user install commands without `sudo` to populate your user-local `~/.cargo/bin`.
+
+### Fallback detection
+
+The scripts attempt to auto-install missing tools, but they also check common local install locations and will report the fallback path if a tool is found there. If a tool is present under `~/.cargo/bin` but not on `PATH`, export `PATH` in the same shell before running `./scripts/build_extension.sh`.
 
 **Important WASM Flags**:
 

@@ -11,18 +11,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rohd_wave_viewer/src/const/const.dart';
-import 'package:rohd_wave_viewer/src/modules/shared/widgets/signal_tab_container.dart';
+import 'package:rohd_wave_viewer/src/modules/shared/widgets/widgets.dart';
 import 'package:rohd_wave_viewer/src/modules/signal/bloc/signal_bloc.dart';
 import 'package:rohd_wave_viewer/src/modules/waveform/bloc/waveform_module_bloc.dart';
-import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/cursor.dart';
-import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/painters/waveform_hexavalue.dart';
-import 'package:rohd_wave_viewer/src/modules/waveform/view/widgets/painters/waveform_binary.dart';
+import 'cursor.dart';
+import 'painters/painters.dart';
 import 'package:module_structure_api/module_structure_api.dart';
 import 'dart:async';
 
 // Use platform-specific JS bindings: web implementation calls into JS,
 // native implementation is a no-op.
-import '../../../../platform/platform.dart' as plat;
+import 'package:rohd_wave_viewer/src/platform/platform.dart' as plat;
 
 enum SignalType { binary, hexadecimal }
 
@@ -81,8 +80,6 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _repaintNotifier.value++;
-        debugPrint(
-            '[WaveformBackground] repaintNotifier bumped due to zoom/viewport change -> ${_repaintNotifier.value}');
       });
     }
 
@@ -107,8 +104,8 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
     _scrollRebuildPending = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) setState(() {});
-      // Notify painters to repaint as scroll offset changed
-      _repaintNotifier.value++;
+      // Note: removed _repaintNotifier bump here since setState already triggers rebuild
+      // and the painters will repaint due to scrollOffset parameter change.
       _scrollRebuildPending = false;
     });
   }
@@ -118,17 +115,15 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
   /// Force a repaint from outside the widget (used by the parent panel during zoom)
   void forceRepaint() {
     if (!mounted) return;
-    debugPrint(
-        '[WaveformBackground] forceRepaint called -> ${_repaintNotifier.value + 1}');
 
     // Cancel any pending timer
     _repaintTimer?.cancel();
 
-    // Use a timer to force multiple repaints over 100ms
-    // This keeps the compositor active in embedded webviews
+    // Use a short timer to force a couple of repaints (reduced from 10 to 3)
+    // This keeps the compositor active in embedded webviews without spam
     int count = 0;
-    _repaintTimer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
-      if (!mounted || count >= 10) {
+    _repaintTimer = Timer.periodic(const Duration(milliseconds: 32), (timer) {
+      if (!mounted || count >= 3) {
         timer.cancel();
         return;
       }
@@ -136,9 +131,7 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
       _repaintNotifier.value++;
       setState(() {});
       SchedulerBinding.instance.scheduleFrame();
-      // Also call JS requestAnimationFrame to nudge the browser
       _requestBrowserAnimationFrame();
-      // Call the DOM-level force repaint (toggles class to force compositor flush)
       _callJsForceRepaint();
     });
   }
@@ -288,9 +281,11 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
                                     return drawWaveform(
                                       context,
                                       sig.data,
-                                      sig.type == 'hex'
-                                          ? SignalType.hexadecimal
-                                          : SignalType.binary,
+                                      (sig.type.toLowerCase() == 'bin' ||
+                                              sig.type.toLowerCase() ==
+                                                  'binary')
+                                          ? SignalType.binary
+                                          : SignalType.hexadecimal,
                                       actualWidth,
                                       visibleStartTime.toInt(),
                                       visibleTimeRange.toInt(),
@@ -298,6 +293,7 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
                                       visibleStartTime,
                                       viewportWidth,
                                       scrollOffset,
+                                      sig.width,
                                     );
                                   },
                                 ),
@@ -384,7 +380,7 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
     return localOffset;
   }
 
-  Widget drawWaveform(
+    Widget drawWaveform(
       BuildContext context,
       List<Data> data,
       SignalType sigType,
@@ -394,7 +390,8 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
       double leftOffset,
       double visibleStartTime,
       double viewportWidth,
-      double scrollOffset) {
+      double scrollOffset,
+      int? signalWidth) {
     final painterWidth = width;
     // Removed debug logging for drawWaveform
 
@@ -419,19 +416,33 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
                   // time 0 to leftOffset and time=timescale to width-rightPadding.
                   // The canvas width is contentWidth (zoomed), so waveforms scale correctly.
                   // ScrollView handles clipping to show the visible portion.
-                  painter: sigType == SignalType.hexadecimal
-                      ? WaveformHexaValue(data, visibleTimeRange, startTime,
-                          leftOffset: leftOffset,
-                          viewportWidth: viewportWidth,
-                          scrollOffset: scrollOffset,
-                          timescale: widget.timescale,
-                          repaint: _repaintNotifier)
-                      : WaveformBinary(data, visibleTimeRange, startTime,
-                          leftOffset: leftOffset,
-                          viewportWidth: viewportWidth,
-                          scrollOffset: scrollOffset,
-                          timescale: widget.timescale,
-                          repaint: _repaintNotifier),
+                                    // Prefer declared `signalWidth` when available: if a signal
+                                    // is declared as 1-bit, use the binary painter regardless
+                                    // of the textual type reported by the loader. This helps
+                                    // ensure `clk`-like signals render as single-bit.
+                                    painter: (signalWidth != null && signalWidth == 1)
+                                      ? WaveformBinary(data, visibleTimeRange, startTime,
+                                        signalWidth: signalWidth,
+                                        leftOffset: leftOffset,
+                                        viewportWidth: viewportWidth,
+                                        scrollOffset: scrollOffset,
+                                        timescale: widget.timescale,
+                                        repaint: _repaintNotifier)
+                                      : (sigType == SignalType.hexadecimal
+                                        ? WaveformHexaValue(data, visibleTimeRange, startTime,
+                                          signalWidth: signalWidth,
+                                          leftOffset: leftOffset,
+                                          viewportWidth: viewportWidth,
+                                          scrollOffset: scrollOffset,
+                                          timescale: widget.timescale,
+                                          repaint: _repaintNotifier)
+                                        : WaveformBinary(data, visibleTimeRange, startTime,
+                                          signalWidth: signalWidth,
+                                          leftOffset: leftOffset,
+                                          viewportWidth: viewportWidth,
+                                          scrollOffset: scrollOffset,
+                                          timescale: widget.timescale,
+                                          repaint: _repaintNotifier)),
                 );
               },
             ),

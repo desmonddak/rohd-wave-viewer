@@ -83,6 +83,11 @@ This file captures observed tools used for building the project (web and native)
   - Commonly installed via OS package manager (`apt install binaryen`) or downloaded from Binaryen releases.
   - Verify: `which wasm-opt`
 
+ - wasm-opt (Binaryen)
+   - Observed: /usr/bin/wasm-opt (found in some environments)
+   - Used by `wasm-pack` for WASM optimizations during packaging. If present, build scripts will call `wasm-opt` to optimize generated wasm binaries.
+   - Verify: `which wasm-opt` or `wasm-opt --version`
+
 - git
   - Path: `/usr/bin/git`
   - Likely installed via `apt install git`.
@@ -168,7 +173,7 @@ ls -l web/pkg
   - `cargo install -f wasm-bindgen-cli` (if scripts call `wasm-bindgen` directly)
 - Install Binaryen (provides `wasm-opt`):
   - Ubuntu/Debian: `sudo apt install binaryen`
-
+ 
 ### LLVM / Clang / Binaryen (needed for ffigen / wasm-opt)
 
 ffigen (used by `flutter_rust_bridge_codegen`) requires LLVM's libclang to parse C headers, and `wasm-opt` (from Binaryen) is used by `wasm-pack` for wasm optimizations. If these are missing you'll see errors like "ffigen could not find LLVM" or failed Binaryen downloads.
@@ -195,7 +200,6 @@ export LIBCLANG_PATH="$(brew --prefix llvm)/lib"
 ```
 
 If LLVM or Binaryen are installed in a custom location, set `LIBCLANG_PATH` to the directory containing `libclang.so` (or `libclang.dylib` on macOS) before running the build script.
-
 - Node (recommended modern LTS):
   - Use `nvm` to install Node 18+: `curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.4/install.sh | bash` then `nvm install --lts`.
   - Alternatively on Debian/Ubuntu you can install via apt:
@@ -206,7 +210,6 @@ sudo apt install -y nodejs npm
 ```
 
 Note: system package managers may ship older Node versions. `nvm` is recommended for installing a modern LTS (Node 18+).
-
 - Flutter SDK:
   - Download stable from flutter.dev and extract to `/opt/flutter` or a user-writable location, then add to PATH.
 
@@ -230,6 +233,52 @@ export PATH="$CARGO_HOME/bin:$PATH"
 ```
 
 - If you see build scripts that attempted to install tools globally (using `sudo`), prefer re-running them as your user after fixing ownership or updating the environment above.
+
+## Updated guidance (2026-01-07)
+
+The repository's build scripts (`scripts/setup_rust_env.sh`, `scripts/build_rust_wasm.sh`, `scripts/build_extension.sh`) now expect and prefer per-user Rust tools installed under `CARGO_HOME` (by default `$HOME/.cargo`). They will:
+
+- Prepend `$CARGO_HOME/bin` to `PATH` during scripted runs so user-installed tools like `wasm-pack` are discovered.
+- Attempt to auto-install missing tools (e.g., `cargo install wasm-pack`), but installs can fail if `CARGO_HOME` points to a directory you cannot write (common when earlier installs were done as root).
+- `scripts/build_extension.sh` performs extra detection: if a tool is not on `PATH` it will also check `$CARGO_HOME/bin` and `$HOME/.cargo/bin` as fallbacks and report the fallback path when found.
+
+Recommendations to avoid common failures:
+
+- Ensure your shell has the cargo bin directory in `PATH` before running build scripts. In bash/zsh add to `~/.bashrc` or `~/.profile`:
+
+```bash
+export CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}"
+export RUSTUP_HOME="${RUSTUP_HOME:-$HOME/.rustup}"
+export PATH="$CARGO_HOME/bin:$PATH"
+```
+
+- Use bash when running the repository scripts (they rely on bash-style `export` and `$(...)`); tcsh requires different syntax.
+- If `cargo install` fails with permission errors referencing `/opt` or other system directories, fix ownership and re-run:
+
+```bash
+sudo chown -R $(id -u):$(id -g) $HOME/.cargo $HOME/.rustup
+# then reinstall user tools
+cargo install wasm-pack
+cargo install -f wasm-bindgen-cli
+```
+
+- If you prefer not to change ownership, set `FORCE_SYSTEM_RUST=1` to make the scripts respect existing system Rust locations instead of forcing per-user paths. See `scripts/setup_rust_env.sh` for details.
+
+Troubleshooting checklist
+
+- `which wasm-pack` should point to a binary under `$HOME/.cargo/bin` or the explicit `CARGO_HOME` bin.
+- If `wasm-pack` is present but the build script still reported 'not found', ensure you exported `PATH` in the same shell/session that runs the script (or run the build from the shell where `PATH` is set).
+- When in doubt, run the install commands manually under the invoking user (no `sudo`) and re-run the build script.
+
+## Build-time informational warnings
+
+- When running `wasm-pack` / `cargo`, you may see informational messages such as:
+
+  [INFO]: Optional fields missing from Cargo.toml: 'description', 'repository', and 'license'. These are informational only and won't stop the build, but adding them improves package metadata.
+
+- The repository now includes recommended metadata in `rust/wellen_bridge/Cargo.toml` (description, repository, license, homepage) to remove that warning.
+
+If you want an automated helper, I can add a `scripts/setup_local_env.sh` that verifies `CARGO_HOME`/`PATH`, attempts non-destructive installs (prompting before `cargo install`), and prints clear remediation steps when something is missing.
 
 ---
 

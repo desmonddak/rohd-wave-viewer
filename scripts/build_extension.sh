@@ -1,217 +1,60 @@
 #!/bin/bash
 # Build script for ROHD Wave Viewer VS Code extension
-# This script builds the Flutter web app with WASM support and installs it as a VS Code extension.
+# This script builds the Flutter web app and installs it as a VS Code extension.
+# 
+# NOTE: This script assumes Rust bindings and WASM have already been generated.
+# Run full_build.sh for a complete build, or run generate_frb.sh and build_rust_wasm.sh
+# separately before running this script.
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/.."
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$ROOT_DIR"
 
-echo "=== ROHD Wave Viewer Build Script ==="
-
-# Helper: run command and capture version, tolerant to missing command
-capture_version() {
-  local name="$1"; shift
-  local cmd=("$@")
-  if ! command -v "${cmd[0]}" >/dev/null 2>&1; then
-    echo "${name}: not found"
-    return 1
-  fi
-  local out
-  if out="$(${cmd[@]} 2>&1)"; then
-    local line
-    line=$(printf "%s" "$out" | sed -n '1p')
-    echo "${name}: ${line}"
-    return 0
-  else
-    echo "${name}: unknown"
-    return 2
-  fi
-}
-
-# Compare actual vs expected, print warning if mismatch
-check_version() {
-  local label="$1"; local actual="$2"; local expectedEnv="$3"
-  local expectedVal="${!expectedEnv}"
-  if [ -n "$expectedVal" ]; then
-    if [[ "$actual" != *"$expectedVal"* ]]; then
-      echo "WARNING: ${label} version mismatch; expected '${expectedVal}', got '${actual}'"
-    else
-      echo "OK: ${label} matches expected '${expectedVal}'"
-    fi
-  fi
-}
-
-echo "Detected tool versions:"
-FLUTTER_VER=$(capture_version "flutter" flutter --version || true)
-CARGO_VER=$(capture_version "cargo" cargo --version || true)
-RUSTUP_VER=$(capture_version "rustup" rustup --version || true)
-WASM_PACK_VER=$(capture_version "wasm-pack" wasm-pack --version || true)
-NODE_VER=$(capture_version "node" node --version || true)
-NPM_VER=$(capture_version "npm" npm --version || true)
-TSC_VER="$(cd vscode-extension 2>/dev/null && [ -f package.json ] && node -e "try{const p=require('./vscode-extension/package.json'); console.log((p.devDependencies && p.devDependencies.typescript)||p.dependencies.typescript||'') }catch(e){}" 2>/dev/null || true)"
-if [ -n "$TSC_VER" ]; then
-  echo "typescript (declared in package.json): ${TSC_VER}"
-fi
-
-echo "$FLUTTER_VER"
-echo "$CARGO_VER"
-echo "$RUSTUP_VER"
-echo "$WASM_PACK_VER"
-echo "$NODE_VER"
-echo "$NPM_VER"
+echo "=== ROHD Wave Viewer Extension Build Script ==="
 
 # Check for required tools
 command -v flutter >/dev/null 2>&1 || { echo "Error: flutter not found"; exit 1; }
-command -v cargo >/dev/null 2>&1 || { echo "Error: cargo not found"; exit 1; }
-export PATH="${HOME}/.cargo/bin:${PATH}"
+command -v node >/dev/null 2>&1 || { echo "Error: node not found"; exit 1; }
+command -v npm >/dev/null 2>&1 || { echo "Error: npm not found"; exit 1; }
 
-export CARGO_HOME="${HOME}/.cargo"
-export RUSTUP_HOME="${HOME}/.rustup"
-export PATH="${CARGO_HOME}/bin:${PATH}"
+echo "Detected tool versions:"
+flutter --version | head -1
+node --version
+npm --version
 
-echo "Using CARGO_HOME: $CARGO_HOME"
-echo "Using RUSTUP_HOME: $RUSTUP_HOME"
-echo "Using PATH: $PATH"
-if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER-}" ]; then
-  INVOKER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
-else
-  INVOKER_HOME="$HOME"
+# Verify WASM package exists (should have been built by build_rust_wasm.sh)
+if [ ! -d "web/pkg" ]; then
+  echo "Error: web/pkg not found. Run full_build.sh or build_rust_wasm.sh first."
+  exit 1
 fi
 
-_CARGO_RAW="${CARGO_HOME:-${INVOKER_HOME}/.cargo}"
-_RUSTUP_RAW="${RUSTUP_HOME:-${INVOKER_HOME}/.rustup}"
-export CARGO_HOME="${_CARGO_RAW%%:*}"
-export RUSTUP_HOME="${_RUSTUP_RAW%%:*}"
-
-echo "Using CARGO_HOME: $CARGO_HOME"
-echo "Using RUSTUP_HOME: $RUSTUP_HOME"
-
-export PATH="$CARGO_HOME/bin:$PATH"
-echo "Using PATH: $PATH"
-
-RUSTUP_BIN="$CARGO_HOME/bin/rustup"
-if [ ! -x "$RUSTUP_BIN" ]; then
-  if command -v rustup >/dev/null 2>&1; then
-    RUSTUP_BIN="$(command -v rustup)"
-  else
-    RUSTUP_BIN=""
-  fi
-fi
-if [ -z "$RUSTUP_BIN" ]; then
-  echo "Error: rustup not found in $CARGO_HOME/bin or PATH. Please install rustup.";
-  exit 1;
-fi
-echo "Using rustup: $RUSTUP_BIN"
-
-if [ -n "$RUSTUP_BIN" ]; then
-  if ! "$RUSTUP_BIN" show active-toolchain >/dev/null 2>&1; then
-    echo "No default Rust toolchain configured; installing 'stable' and setting it as default..."
-    "$RUSTUP_BIN" default stable || {
-      echo "Failed to set default toolchain. Please run '$RUSTUP_BIN default stable' manually as the owning user.";
-    }
-  fi
-fi
-
-_CARGO_RAW="${CARGO_HOME:-${HOME}/.cargo}"
-_RUSTUP_RAW="${RUSTUP_HOME:-${HOME}/.rustup}"
-export CARGO_HOME="${_CARGO_RAW%%:*}"
-export RUSTUP_HOME="${_RUSTUP_RAW%%:*}"
-
-for dir in "$CARGO_HOME" "$RUSTUP_HOME"; do
-  if [ -e "$dir" ]; then
-    owner=$(stat -c %U "$dir" 2>/dev/null || true)
-    if [ "$owner" = "root" ]; then
-      echo "Error: $dir is owned by root. This can happen if Rust/cargo was run with sudo."
-      echo "Please fix ownership so your user can write there, for example:"
-      echo "  sudo chown -R $(id -u):$(id -g) $dir"
-      exit 1
-    fi
-  fi
-done
-
-if ! command -v wasm-pack >/dev/null 2>&1; then
-  echo "wasm-pack not found. Attempting to install via 'cargo install wasm-pack'..."
-  if command -v cargo >/dev/null 2>&1; then
-    cargo install wasm-pack || {
-      echo "Automatic install of wasm-pack failed. Please install manually: cargo install wasm-pack";
-      exit 1;
-    }
-  else
-    echo "Error: cargo not found. Cannot install wasm-pack. Please install Rust and cargo first.";
-    exit 1;
-  fi
-fi
-
-if [ -d "$HOME/.cache/.wasm-pack" ]; then
-  cache_bin=$(find "$HOME/.cache/.wasm-pack" -type d -path '*/bin' -print -quit 2>/dev/null || true)
-  if [ -n "$cache_bin" ]; then
-    export PATH="$cache_bin:$PATH"
-    echo "Added wasm-pack cache bin to PATH: $cache_bin"
-  fi
-fi
-
-if [ -z "${FORCE_CARGO_INSTALL-}" ]; then
-  if ! command -v wasm-bindgen >/dev/null 2>&1; then
-    echo "wasm-bindgen not found. Installing via 'cargo install -f wasm-bindgen-cli'..."
-    cargo install -f wasm-bindgen-cli || {
-      echo "Automatic install of wasm-bindgen-cli failed. Please install manually: cargo install -f wasm-bindgen-cli";
-      exit 1;
-    }
-  else
-    echo "wasm-bindgen detected; skipping cargo install. Set FORCE_CARGO_INSTALL=1 to reinstall."
-  fi
-else
-  echo "FORCE_CARGO_INSTALL set; reinstalling wasm-bindgen-cli"
-  cargo install -f wasm-bindgen-cli || {
-    echo "Automatic install of wasm-bindgen-cli failed. Please install manually: cargo install -f wasm-bindgen-cli";
-    exit 1;
-  }
-fi
-
-echo "Checking Rust toolchain..."
-"$RUSTUP_BIN" toolchain list | grep -q nightly || "$RUSTUP_BIN" toolchain install nightly
-"$RUSTUP_BIN" target add wasm32-unknown-unknown --toolchain nightly 2>/dev/null || true
-"$RUSTUP_BIN" component add rust-src --toolchain nightly 2>/dev/null || true
-
+# Step 1: Build Flutter web using web-specific entry point
 echo ""
-echo "=== Step 1: Generating bindings and building WASM ==="
-ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-
-"$ROOT_DIR/scripts/generate_frb.sh"
-"$ROOT_DIR/scripts/build_rust_wasm.sh"
-echo "✓ WASM bindings built"
-
-
-# Step 2: Build Flutter web using web-specific entry point
-echo ""
-echo "=== Step 2: Building Flutter web app ==="
+echo "=== Step 1: Building Flutter web app ==="
 echo "Building Flutter web with lib/main_web.dart (web-specific entry point)..."
 flutter build web --release --target lib/main_web.dart
 echo "✓ Flutter web app built"
 
-# Step 3: Fix flutter_bootstrap.js for webview compatibility
+# Step 2: Fix flutter_bootstrap.js for webview compatibility
 echo ""
-echo "=== Step 3: Fixing flutter_bootstrap.js for webview ==="
+echo "=== Step 2: Fixing flutter_bootstrap.js for webview ==="
 echo "Adding useLocalCanvasKit and removing service worker settings..."
 python3 scripts/fix_bootstrap.py
 echo "✓ flutter_bootstrap.js fixed"
 
-# Step 4: Copy WASM pkg to build output (if not already there)
+# Step 3: Copy WASM pkg to build output (if not already there)
 echo ""
-echo "=== Step 4: Ensuring WASM pkg is in build output ==="
-if [ -d "web/pkg" ]; then
-  echo "Copying WASM package to Flutter build output..."
-  rm -rf build/web/pkg
-  cp -r web/pkg build/web/
-  echo "✓ WASM package copied"
-else
-  echo "Error: web/pkg not found. WASM build may have failed."
-  exit 1
-fi
+echo "=== Step 3: Ensuring WASM pkg is in build output ==="
+echo "Copying WASM package to Flutter build output..."
+rm -rf build/web/pkg
+cp -r web/pkg build/web/
+echo "✓ WASM package copied"
 
+# Step 4: Patch WASM for VS Code webview compatibility
 echo ""
-echo "=== Step 5: Patching WASM for VS Code webview compatibility ==="
+echo "=== Step 4: Patching WASM for VS Code webview compatibility ==="
 if ! command -v wasm2wat >/dev/null 2>&1 || ! command -v wat2wasm >/dev/null 2>&1; then
   echo "WARNING: wabt tools (wasm2wat, wat2wasm) not found."
   echo "The extension may fail in VS Code Remote environments without this patch."
@@ -292,29 +135,20 @@ PYTHON_PATCH
   fi
 fi
 
+# Step 5: Compile VS Code extension
 echo ""
-echo "=== Step 6: Compiling VS Code extension ==="
+echo "=== Step 5: Compiling VS Code extension ==="
 echo "Installing npm dependencies..."
 cd vscode-extension
-if ! command -v node >/dev/null 2>&1; then
-  echo "Error: node not found. Please install Node.js (recommended via nvm or your package manager)."
-  echo "Ubuntu/Debian example: sudo apt update && sudo apt install -y nodejs npm"
-  exit 1
-fi
-if ! command -v npm >/dev/null 2>&1; then
-  echo "Error: npm not found. Please install npm (often provided with Node.js)."
-  echo "Ubuntu/Debian example: sudo apt update && sudo apt install -y nodejs npm"
-  exit 1
-fi
-
 npm install
 echo "Compiling TypeScript to JavaScript..."
 npm run compile
 cd ..
 echo "✓ VS Code extension compiled"
 
+# Step 6: Install VS Code extension
 echo ""
-echo "=== Step 7: Installing VS Code extension ==="
+echo "=== Step 6: Installing VS Code extension ==="
 EXTENSION_DIR="$HOME/.vscode/extensions/local.rohd-wave-viewer-vscode-0.0.1"
 echo "Installing to: $EXTENSION_DIR"
 rm -rf "$EXTENSION_DIR"
@@ -369,9 +203,8 @@ if [ -d "$HOME/.vscode-server" ]; then
   echo "✓ Extension copied to remote server extensions directory"
 fi
 
-## Optionally build a .vsix package (script lives in scripts/). This is
-## guarded: only run if the packaging script exists and is executable.
-VSIX_SCRIPT="$SCRIPT_DIR/scripts/build_vsix.tcsh"
+# Optionally build a .vsix package
+VSIX_SCRIPT="$SCRIPT_DIR/build_vsix.tcsh"
 if [ -x "$VSIX_SCRIPT" ]; then
   echo "Building .vsix package using $VSIX_SCRIPT..."
   if command -v bash >/dev/null 2>&1; then

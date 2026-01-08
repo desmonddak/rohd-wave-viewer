@@ -1,3 +1,22 @@
+Short description: VS Code extension source and build output
+
+This folder is the **TypeScript source** and development workspace for the VS Code extension used by rohd-wave-viewer.
+
+- `vscode-extension/` contains the TypeScript sources and development config (launch.json).
+- `vscode-extension/out/` is the compiled JavaScript output produced by `npm run compile`.
+
+Development workflow summary:
+
+1. From the repo root, compile the extension JavaScript:
+
+   npm --prefix vscode-extension run compile
+
+2. The build/packaging step copies packaging/template assets from `vscode-ext-package/extension/` and the compiled `vscode-extension/out/` to the target extension directory (see `scripts/build_extension.sh`).
+
+Notes:
+
+- Keep TypeScript source in this folder. Do not commit compiled artifacts unless explicitly desired by your workflow.
+
 ROHD Wave Viewer VS Code Extension
 
 This folder contains a minimal VS Code extension that hosts the Flutter web build (from `build/web`) inside a Webview.
