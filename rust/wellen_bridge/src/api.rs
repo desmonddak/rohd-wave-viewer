@@ -275,6 +275,22 @@ fn load_waveform_native(file_path: String) -> Result<WaveformMetadata, String> {
     // Get metadata
     let metadata = create_metadata(&hierarchy, format, file_path, &time_table);
 
+    // Debug: print a short list of signals with type and width for diagnosis
+    {
+        let sigs: Vec<String> = hierarchy
+            .iter_vars()
+            .map(|var| {
+                let name = var.full_name(&hierarchy);
+                let vtype = var_type_to_string(var.var_type());
+                let width = var.length().unwrap_or(1);
+                format!("{}:{}:{}", name, vtype, width)
+            })
+            .take(200)
+            .collect();
+        eprintln!("[ROHD_DEBUG] load_waveform_native signals (first={}): {}",
+            sigs.len(), sigs.join(", "));
+    }
+
     // Store state
     let state = WaveformState {
         hierarchy,
@@ -339,6 +355,22 @@ pub fn load_waveform_from_bytes(bytes: Vec<u8>, file_name: Option<String>) -> Re
         time_table.len(),
         format
     );
+
+    // Debug: print a short list of signals with type and width for diagnosis
+    {
+        let sigs: Vec<String> = hierarchy
+            .iter_vars()
+            .map(|var| {
+                let name = var.full_name(&hierarchy);
+                let vtype = var_type_to_string(var.var_type());
+                let width = var.length().unwrap_or(1);
+                format!("{}:{}:{}", name, vtype, width)
+            })
+            .take(200)
+            .collect();
+        eprintln!("[ROHD_DEBUG] load_waveform_from_bytes signals (first={}): {}",
+            sigs.len(), sigs.join(", "));
+    }
 
     // Store state
     let state = WaveformState {

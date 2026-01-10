@@ -50,7 +50,7 @@ setenv PATH ~/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:$PATH
 ~/.cargo/bin/flutter_rust_bridge_codegen generate \
   --rust-input crate::api \
   --rust-root rust/wellen_bridge \
-  --dart-output packages/rohd_wellen/lib/src/rust \
+  --dart-output packages/dart_wellen/lib/src/rust \
   --rust-output rust/wellen_bridge/src/frb_generated.rs
 ```
 

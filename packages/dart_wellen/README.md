@@ -1,4 +1,4 @@
-# rohd_wellen
+# dart_wellen
 
 Dart bindings to the [wellen](https://github.com/ekiwi/wellen) Rust library for reading and writing waveform files.
 
@@ -22,8 +22,8 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  rohd_wellen:
-    path: packages/rohd_wellen
+  dart_wellen:
+    path: packages/dart_wellen
 ```
 
 ### Rust Toolchain
@@ -34,7 +34,7 @@ This package uses Rust via `flutter_rust_bridge`. You need:
 2. Run code generation:
 
    ```bash
-   cd packages/rohd_wellen
+   cd packages/dart_wellen
    flutter_rust_bridge_codegen generate
    ```
 
@@ -43,7 +43,7 @@ This package uses Rust via `flutter_rust_bridge`. You need:
 ### Reading Waveform Files
 
 ```dart
-import 'package:rohd_wellen/rohd_wellen.dart';
+import 'package:dart_wellen/dart_wellen.dart';
 
 Future<void> main() async {
   final reader = WellenReader();
@@ -82,7 +82,7 @@ Future<void> main() async {
 ### Writing Waveform Files
 
 ```dart
-import 'package:rohd_wellen/rohd_wellen.dart';
+import 'package:dart_wellen/dart_wellen.dart';
 
 Future<void> main() async {
   final writer = WellenWriter();
@@ -129,7 +129,7 @@ Future<void> main() async {
 ### WellenWaveDumper (ROHD-style API)
 
 ```dart
-import 'package:rohd_wellen/rohd_wellen.dart';
+import 'package:dart_wellen/dart_wellen.dart';
 
 Future<void> main() async {
   final dumper = WellenWaveDumper(
@@ -163,9 +163,9 @@ Future<void> main() async {
 ## Architecture
 
 ```text
-packages/rohd_wellen/
+packages/dart_wellen/
 ├── lib/
-│   ├── rohd_wellen.dart          # Main library export
+│   ├── dart_wellen.dart          # Main library export
 │   └── src/
 │       ├── models/               # Data models
 │       │   ├── hierarchy.dart

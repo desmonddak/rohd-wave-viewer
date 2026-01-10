@@ -1,0 +1,65 @@
+$date
+    Today
+$end
+$version
+    rohd-wave-viewer test fixture (valid VCD syntax)
+$end
+$timescale 1ns $end
+$scope module test $end
+$var wire 1 a clk $end
+$var wire 8 b data8 [7:0] $end
+$upscope $end
+$enddefinitions $end
+
+#0
+xa
+bxxxxxxxx b
+
+#10
+1a
+#20
+xa
+#30
+za
+#40
+0a
+#50
+za
+#60
+xa
+
+#70
+b00001111 b
+#80
+ bzzzzzzzz b
+#90
+b11110000 b
+#100
+bxxxxxxxx b
+#110
+b00000000 b
+#120
+b11111111 b
+#130
+ bzzzzzzzz b
+#140
+b10101010 b
+#150
+ bzzzzzzzz b
+#160
+b00000001 b
+#170
+bxxxxxxxx b
+#180
+b00110011 b
+#190
+bxxxxxxxx b
+#200
+b01010101 b
+
+#210
+bxxxxxxxx b
+#220
+bzzzzzzzz b
+#230
+bxxxxxxxx b

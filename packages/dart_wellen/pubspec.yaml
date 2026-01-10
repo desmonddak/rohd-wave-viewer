@@ -1,4 +1,4 @@
-name: rohd_wellen
+name: dart_wellen
 description: "Wellen waveform library bindings for ROHD - supports reading and writing VCD, FST, and GHW formats."
 homepage: https://intel.github.io/rohd-website/
 repository: https://github.com/intel/rohd-wellen

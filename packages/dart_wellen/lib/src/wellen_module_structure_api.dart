@@ -10,9 +10,9 @@
 import 'dart:developer' as developer;
 import 'package:module_structure_api/module_structure_api.dart';
 import 'rust/api.dart' as rust;
-import 'rust/frb_generated.dart';
+import 'rust/frb_generated.dart' show RustLib;
 import 'external_library_io.dart'
-  if (dart.library.js_interop) 'external_library_web.dart';
+    if (dart.library.js_interop) 'external_library_web.dart';
 
 /// Implementation of [ModuleStructureApi] using the Wellen library.
 ///
@@ -31,9 +31,7 @@ class WellenModuleStructureApi extends ModuleStructureApi {
     if (!_initialized) {
       // On web, pass an ExternalLibrary to skip WASM loading (already done via wasm_bindgen).
       // On native, returns null to let flutter_rust_bridge load the library normally.
-      await RustLib.init(
-        externalLibrary: createPreloadedExternalLibrary(),
-      );
+      await RustLib.init(externalLibrary: createPreloadedExternalLibrary());
       _initialized = true;
     }
   }
@@ -54,42 +52,59 @@ class WellenModuleStructureApi extends ModuleStructureApi {
     // diagnose cases where a single-bit signal like `clk` is being treated as multi-bit.
     try {
       if (_cachedStructure == null) {
-        developer.log('Wellen waveform structure is null after load.',
-            name: 'WellenModuleStructureApi');
+        developer.log(
+          'Wellen waveform structure is null after load.',
+          name: 'WellenModuleStructureApi',
+        );
       } else {
         // Include the signal type in diagnostic output so we can see why
         // the viewer chooses a hex vs binary painter for each signal.
         final namesWithTypesAndWidths = _cachedStructure!.modules
-          .expand((m) => m.signals)
-          .map((s) => '${s.fullPath}:${s.signalType}:${s.bitWidth}')
-          .toList();
-        developer.log('Wellen loaded signals (name:type:width): ${namesWithTypesAndWidths.join(', ')}',
-            name: 'WellenModuleStructureApi');
+            .expand((m) => m.signals)
+            .map((s) => '${s.fullPath}:${s.signalType}:${s.bitWidth}')
+            .toList();
+        developer.log(
+          'Wellen loaded signals (name:type:width): ${namesWithTypesAndWidths.join(', ')}',
+          name: 'WellenModuleStructureApi',
+        );
         // Also print to stdout so webview/browser consoles show the data.
         // ignore: avoid_print
-        print('Wellen loaded signals (name:type:width): ${namesWithTypesAndWidths.join(', ')}');
+        print(
+          'Wellen loaded signals (name:type:width): ${namesWithTypesAndWidths.join(', ')}',
+        );
 
         final clkSignals = _cachedStructure!.modules
-          .expand((m) => m.signals)
-          .where((s) =>
-            (s.name.toLowerCase() == 'clk' || s.name.toLowerCase().endsWith('.clk')))
-          .map((s) => '${s.fullPath}:${s.signalType}:${s.bitWidth}')
-          .toList();
+            .expand((m) => m.signals)
+            .where(
+              (s) =>
+                  (s.name.toLowerCase() == 'clk' ||
+                  s.name.toLowerCase().endsWith('.clk')),
+            )
+            .map((s) => '${s.fullPath}:${s.signalType}:${s.bitWidth}')
+            .toList();
         if (clkSignals.isNotEmpty) {
-          developer.log('Found clk signals: ${clkSignals.join(', ')}',
-              name: 'WellenModuleStructureApi');
+          developer.log(
+            'Found clk signals: ${clkSignals.join(', ')}',
+            name: 'WellenModuleStructureApi',
+          );
           // ignore: avoid_print
           print('Found clk signals: ${clkSignals.join(', ')}');
         } else {
-          developer.log('No clk signals found in waveform structure.',
-              name: 'WellenModuleStructureApi');
+          developer.log(
+            'No clk signals found in waveform structure.',
+            name: 'WellenModuleStructureApi',
+          );
           // ignore: avoid_print
           print('No clk signals found in waveform structure.');
         }
       }
     } catch (e, st) {
-      developer.log('Error while logging signal widths: $e',
-          name: 'WellenModuleStructureApi', error: e, stackTrace: st);
+      developer.log(
+        'Error while logging signal widths: $e',
+        name: 'WellenModuleStructureApi',
+        error: e,
+        stackTrace: st,
+      );
     }
     // Debug logging removed
     _isLoaded = true;
@@ -148,49 +163,70 @@ class WellenModuleStructureApi extends ModuleStructureApi {
       // Verification logging for web paths that use loadBytes()
       try {
         if (_cachedStructure == null) {
-          developer.log('Wellen waveform structure is null after loadBytes.',
-              name: 'WellenModuleStructureApi');
+          developer.log(
+            'Wellen waveform structure is null after loadBytes.',
+            name: 'WellenModuleStructureApi',
+          );
           // ignore: avoid_print
           print('Wellen waveform structure is null after loadBytes.');
         } else {
           final namesWithWidths = _cachedStructure!.modules
-            .expand((m) => m.signals)
-            .map((s) => '${s.fullPath}:${s.bitWidth}')
-            .toList();
-          developer.log('Wellen loaded signals (loadBytes name:width): ${namesWithWidths.join(', ')}',
-              name: 'WellenModuleStructureApi');
+              .expand((m) => m.signals)
+              .map((s) => '${s.fullPath}:${s.bitWidth}')
+              .toList();
+          developer.log(
+            'Wellen loaded signals (loadBytes name:width): ${namesWithWidths.join(', ')}',
+            name: 'WellenModuleStructureApi',
+          );
           // ignore: avoid_print
-          print('Wellen loaded signals (loadBytes name:width): ${namesWithWidths.join(', ')}');
+          print(
+            'Wellen loaded signals (loadBytes name:width): ${namesWithWidths.join(', ')}',
+          );
 
           final clkSignals = _cachedStructure!.modules
-            .expand((m) => m.signals)
-            .where((s) =>
-              (s.name.toLowerCase() == 'clk' || s.name.toLowerCase().endsWith('.clk')))
-            .map((s) => '${s.fullPath}:${s.bitWidth}')
-            .toList();
+              .expand((m) => m.signals)
+              .where(
+                (s) =>
+                    (s.name.toLowerCase() == 'clk' ||
+                    s.name.toLowerCase().endsWith('.clk')),
+              )
+              .map((s) => '${s.fullPath}:${s.bitWidth}')
+              .toList();
           if (clkSignals.isNotEmpty) {
-            developer.log('Found clk signals (loadBytes): ${clkSignals.join(', ')}',
-                name: 'WellenModuleStructureApi');
+            developer.log(
+              'Found clk signals (loadBytes): ${clkSignals.join(', ')}',
+              name: 'WellenModuleStructureApi',
+            );
             // ignore: avoid_print
             print('Found clk signals (loadBytes): ${clkSignals.join(', ')}');
           } else {
-            developer.log('No clk signals found in waveform structure (loadBytes).',
-                name: 'WellenModuleStructureApi');
+            developer.log(
+              'No clk signals found in waveform structure (loadBytes).',
+              name: 'WellenModuleStructureApi',
+            );
             // ignore: avoid_print
             print('No clk signals found in waveform structure (loadBytes).');
           }
         }
       } catch (e, st) {
-        developer.log('Error while logging signal widths in loadBytes: $e',
-            name: 'WellenModuleStructureApi', error: e, stackTrace: st);
+        developer.log(
+          'Error while logging signal widths in loadBytes: $e',
+          name: 'WellenModuleStructureApi',
+          error: e,
+          stackTrace: st,
+        );
       }
       _isLoaded = true;
     } catch (e, stackTrace) {
       // Surface wasm/rust errors for easier debugging in webview console
       // and host logs.
-        // We rethrow after logging so callers can handle errors as needed.
-        developer.log('[WellenModuleStructureApi] Error in loadBytes: $e',
-          name: 'WellenModuleStructureApi', error: e, stackTrace: stackTrace);
+      // We rethrow after logging so callers can handle errors as needed.
+      developer.log(
+        '[WellenModuleStructureApi] Error in loadBytes: $e',
+        name: 'WellenModuleStructureApi',
+        error: e,
+        stackTrace: stackTrace,
+      );
       rethrow;
     }
   }
@@ -260,8 +296,9 @@ class WellenModuleStructureApi extends ModuleStructureApi {
     // Build a map of signal ID to waveform data for quick lookup
     final dataMap = <String, List<Data>>{};
     // Compute timescale multiplier to convert native units -> picoseconds
-    final double timescaleToPs =
-        _computeTimescaleToPsFromMetadata(wellenStructure);
+    final double timescaleToPs = _computeTimescaleToPsFromMetadata(
+      wellenStructure,
+    );
     for (final signalData in waveformData) {
       final list = signalData.data.map((dp) {
         final int tPs = (dp.time.toDouble() * timescaleToPs).round();
@@ -305,15 +342,17 @@ class WellenModuleStructureApi extends ModuleStructureApi {
   ) {
     // Convert signals
     final signals = moduleNode.signals
-        .map((signalInfo) => Signal(
-              id: signalInfo.id,
-              name: signalInfo.name,
-              type: signalInfo.signalType,
-              width: signalInfo.bitWidth.toInt(),
-              fullPath: signalInfo.fullPath,
-              scopeId: signalInfo.scopeId.toInt(),
-              data: dataMap[signalInfo.id] ?? [],
-            ))
+        .map(
+          (signalInfo) => Signal(
+            id: signalInfo.id,
+            name: signalInfo.name,
+            type: signalInfo.signalType,
+            width: signalInfo.bitWidth.toInt(),
+            fullPath: signalInfo.fullPath,
+            scopeId: signalInfo.scopeId.toInt(),
+            data: dataMap[signalInfo.id] ?? [],
+          ),
+        )
         .toList();
 
     // Convert sub-modules recursively
@@ -333,8 +372,9 @@ class WellenModuleStructureApi extends ModuleStructureApi {
   /// Converts Rust SignalWaveformData to viewer's WaveformData.
   WaveformData _convertWaveformData(rust.SignalWaveformData rustData) {
     // Convert rust-native timestamps to picoseconds using metadata
-    final double timescaleToPs =
-        _computeTimescaleToPsFromMetadata(_cachedStructure);
+    final double timescaleToPs = _computeTimescaleToPsFromMetadata(
+      _cachedStructure,
+    );
     final data = rustData.data.map((dp) {
       final int tPs = (dp.time.toDouble() * timescaleToPs).round();
       return Data(time: tPs, value: dp.value);

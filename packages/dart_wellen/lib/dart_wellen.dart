@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: BSD-3-Clause
 //
-// rohd_wellen.dart
+// dart_wellen.dart
 // Wellen waveform library bindings for ROHD.
 //
 // 2026 January 03
@@ -18,7 +18,7 @@
 /// ## Reading Waveforms
 ///
 /// ```dart
-/// import 'package:rohd_wellen/rohd_wellen.dart';
+/// import 'package:dart_wellen/dart_wellen.dart';
 ///
 /// final reader = WellenReader();
 /// await reader.loadFile('simulation.vcd');
@@ -33,7 +33,7 @@
 /// ## Writing Waveforms (WaveDumper Extension)
 ///
 /// ```dart
-/// import 'package:rohd_wellen/rohd_wellen.dart';
+/// import 'package:dart_wellen/dart_wellen.dart';
 ///
 /// // Create a WaveDumper that writes to FST format
 /// final dumper = WellenWaveDumper(

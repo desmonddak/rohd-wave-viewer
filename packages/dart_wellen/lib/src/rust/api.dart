@@ -31,10 +31,13 @@ WaveformMetadata loadWaveform({required String filePath}) =>
 /// # Arguments
 /// * `bytes` - The waveform file contents as bytes
 /// * `file_name` - Optional filename hint for format detection and metadata
-WaveformMetadata loadWaveformFromBytes(
-        {required List<int> bytes, String? fileName}) =>
-    RustLib.instance.api
-        .crateApiLoadWaveformFromBytes(bytes: bytes, fileName: fileName);
+WaveformMetadata loadWaveformFromBytes({
+  required List<int> bytes,
+  String? fileName,
+}) => RustLib.instance.api.crateApiLoadWaveformFromBytes(
+  bytes: bytes,
+  fileName: fileName,
+);
 
 /// Get the waveform structure (hierarchy of modules and signals)
 ///
@@ -46,12 +49,15 @@ WaveformStructure getWaveformStructure() =>
 ///
 /// This loads the actual waveform values for the specified signal IDs.
 /// Signal IDs are the full hierarchical paths (e.g., "top.counter.clk").
-List<SignalWaveformData> getWaveformData(
-        {required List<String> signalIds,
-        BigInt? startTime,
-        BigInt? endTime}) =>
-    RustLib.instance.api.crateApiGetWaveformData(
-        signalIds: signalIds, startTime: startTime, endTime: endTime);
+List<SignalWaveformData> getWaveformData({
+  required List<String> signalIds,
+  BigInt? startTime,
+  BigInt? endTime,
+}) => RustLib.instance.api.crateApiGetWaveformData(
+  signalIds: signalIds,
+  startTime: startTime,
+  endTime: endTime,
+);
 
 /// Get the maximum timestamp in the waveform
 BigInt? getMaxTimestamp() => RustLib.instance.api.crateApiGetMaxTimestamp();
@@ -147,10 +153,7 @@ class SignalWaveformData {
   final String signalId;
   final List<WaveformDataPoint> data;
 
-  const SignalWaveformData({
-    required this.signalId,
-    required this.data,
-  });
+  const SignalWaveformData({required this.signalId, required this.data});
 
   @override
   int get hashCode => signalId.hashCode ^ data.hashCode;
@@ -169,10 +172,7 @@ class WaveformDataPoint {
   final BigInt time;
   final String value;
 
-  const WaveformDataPoint({
-    required this.time,
-    required this.value,
-  });
+  const WaveformDataPoint({required this.time, required this.value});
 
   @override
   int get hashCode => time.hashCode ^ value.hashCode;

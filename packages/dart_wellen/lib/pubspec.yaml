@@ -1,5 +1,8 @@
-name: rohd_wellen
+name: dart_wellen
 description: A library for working with Wellen waveforms in ROHD.
+
+environment:
+  sdk: '^3.9.0'
 
 
 dependencies:

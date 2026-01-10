@@ -11,6 +11,8 @@ environment:
 dependencies:
   module_structure_api:
     path: ../module_structure_api
+  dart_wellen:
+    path: ../dart_wellen
 
 dev_dependencies:
   lints: ^3.0.0

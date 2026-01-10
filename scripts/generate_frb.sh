@@ -36,7 +36,7 @@ if ! command -v flutter_rust_bridge_codegen >/dev/null 2>&1; then
     cargo install flutter_rust_bridge_codegen --version 2.7.0 --locked
 fi
 
-ORIG_CFG="$ROOT_DIR/packages/rohd_wellen/flutter_rust_bridge.yaml"
+ORIG_CFG="$ROOT_DIR/packages/dart_wellen/flutter_rust_bridge.yaml"
 ORIG_DIR="$(dirname "$ORIG_CFG")"
 TMP_CFG="$ORIG_DIR/flutter_rust_bridge.generated.$(date +%s).yaml"
 
@@ -85,8 +85,8 @@ if ! "$RUSTUP_BIN" toolchain list | grep -q "$RUST_TOOLCHAIN"; then
     fi
 fi
 
-echo "[frb-gen] Invoking: $RUSTUP_BIN run $RUST_TOOLCHAIN flutter_rust_bridge_codegen generate --config-file $TMP_CFG (from packages/rohd_wellen)"
-pushd "$ROOT_DIR/packages/rohd_wellen" >/dev/null
+echo "[frb-gen] Invoking: $RUSTUP_BIN run $RUST_TOOLCHAIN flutter_rust_bridge_codegen generate --config-file $TMP_CFG (from packages/dart_wellen)"
+pushd "$ROOT_DIR/packages/dart_wellen" >/dev/null
 "$RUSTUP_BIN" run "$RUST_TOOLCHAIN" flutter_rust_bridge_codegen generate --config-file "$TMP_CFG"
 popd >/dev/null
 

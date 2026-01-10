@@ -243,7 +243,7 @@ After installation, open any `.vcd` file in VS Code. The ROHD Wave Viewer will:
 │  │  │  - Passes to WellenModuleStructureApi       │    │    │
 │  │  └─────────────────────────────────────────────┘    │    │
 │  │  ┌─────────────────────────────────────────────┐    │    │
-│  │  │  rohd_wellen (Dart package)                 │    │    │
+│  │  │  dart_wellen (Dart package)                 │    │    │
 │  │  │  - WellenModuleStructureApi                 │    │    │
 │  │  │  - flutter_rust_bridge FFI                  │    │    │
 │  │  └─────────────────────────────────────────────┘    │    │

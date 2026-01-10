@@ -15,6 +15,19 @@ cd "$ROOT_DIR"
 echo "=== ROHD Wave Viewer Extension Build Script ==="
 
 # Check for required tools
+# If node/npm aren't on PATH, attempt to source a per-user nvm install.
+if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+  if [ -s "$HOME/.nvm/nvm.sh" ]; then
+    echo "Sourcing nvm from $HOME/.nvm/nvm.sh to expose node/npm"
+    # shellcheck source=/dev/null
+    . "$HOME/.nvm/nvm.sh"
+    # try to use default alias if present
+    if command -v nvm >/dev/null 2>&1; then
+      nvm use default >/dev/null 2>&1 || true
+    fi
+  fi
+fi
+
 command -v flutter >/dev/null 2>&1 || { echo "Error: flutter not found"; exit 1; }
 command -v node >/dev/null 2>&1 || { echo "Error: node not found"; exit 1; }
 command -v npm >/dev/null 2>&1 || { echo "Error: npm not found"; exit 1; }

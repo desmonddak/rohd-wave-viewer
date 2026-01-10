@@ -4,7 +4,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 echo "[full-build] Backing up generated files"
-"$SCRIPT_DIR/backup_generated.sh"
+# Disabled to avoid creating build_backups directory
+# "$SCRIPT_DIR/backup_generated.sh"
 
 echo "[full-build] Cleaning compiled Rust artifacts and generated files"
 "$SCRIPT_DIR/clean_rust_and_generated.sh"

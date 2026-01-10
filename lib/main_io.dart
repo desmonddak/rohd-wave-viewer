@@ -9,7 +9,7 @@
 
 import 'dart:io';
 import 'package:module_structure_api/module_structure_api.dart';
-import 'package:rohd_wellen/rohd_wellen.dart';
+import 'package:dart_wellen/dart_wellen.dart';
 import 'mock_module_structure_api.dart';
 
 /// Initialize ModuleStructureApi for native platforms (Linux, macOS, Windows)

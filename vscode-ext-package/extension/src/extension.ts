@@ -46,13 +46,21 @@ function openStandalone(context: vscode.ExtensionContext) {
   });
 }
 
-class VcdCustomEditorProvider implements vscode.CustomTextEditorProvider {
+class VcdCustomEditorProvider implements vscode.CustomReadonlyEditorProvider {
   private readonly context: vscode.ExtensionContext;
   constructor(context: vscode.ExtensionContext) { this.context = context; }
 
-  public async resolveCustomTextEditor(document: vscode.TextDocument, webviewPanel: vscode.WebviewPanel, _token: vscode.CancellationToken): Promise<void> {
-    // Allow the webview to load extension media and the document's folder so it can fetch the file URI directly.
-    const docFolder = vscode.Uri.joinPath(document.uri, '..');
+  public async openCustomDocument(
+    uri: vscode.Uri,
+    _openContext: vscode.CustomDocumentOpenContext,
+    _token: vscode.CancellationToken
+  ): Promise<vscode.CustomDocument> {
+    return { uri, dispose: () => {} };
+  }
+
+  public async resolveCustomEditor(document: vscode.CustomDocument, webviewPanel: vscode.WebviewPanel, _token: vscode.CancellationToken): Promise<void> {
+    const docUri = document.uri as vscode.Uri;
+    const docFolder = vscode.Uri.joinPath(docUri, '..');
     webviewPanel.webview.options = { enableScripts: true, localResourceRoots: [vscode.Uri.joinPath(this.context.extensionUri, 'media'), docFolder] };
 
     const indexPath = path.join(this.context.extensionPath, 'media', 'index.html');
@@ -61,35 +69,37 @@ class VcdCustomEditorProvider implements vscode.CustomTextEditorProvider {
 
     webviewPanel.webview.html = transformHtml(html, webviewPanel.webview, this.context);
 
-    // Send either inline contents (for .vcd) or a webview URI (for other formats)
-    const sendContents = () => {
-      const pathLower = document.uri.path.toLowerCase();
+    const sendContents = async () => {
+      const pathLower = docUri.path.toLowerCase();
       if (pathLower.endsWith('.vcd')) {
-        const msg = { type: 'vcdContents', text: document.getText(), uri: document.uri.toString() };
-        console.log('Posting vcdContents to webview for', document.uri.toString());
-        webviewPanel.webview.postMessage(msg);
+        try {
+          const bytes = await vscode.workspace.fs.readFile(docUri);
+          const text = Buffer.from(bytes).toString('utf8');
+          const msg = { type: 'vcdContents', text: text, uri: docUri.toString() };
+          console.log('Posting vcdContents to webview for', docUri.toString());
+          webviewPanel.webview.postMessage(msg);
+        } catch (e) {
+          console.warn('Failed to read vcd as bytes', e);
+        }
       } else {
-        const vcdUri = webviewPanel.webview.asWebviewUri(document.uri);
-        console.log('Posting vcdUri to webview for', document.uri.toString());
-        webviewPanel.webview.postMessage({ type: 'vcdUri', uri: vcdUri.toString(), originalUri: document.uri.toString() });
+        const vcdUri = webviewPanel.webview.asWebviewUri(docUri);
+        console.log('Posting vcdUri to webview for', docUri.toString());
+        webviewPanel.webview.postMessage({ type: 'vcdUri', uri: vcdUri.toString(), originalUri: docUri.toString() });
       }
     };
 
-    // Wait for the embedded app to post a 'rohdReady' message, or fallback after timeout.
     let readyReceived = false;
     const readyListener = webviewPanel.webview.onDidReceiveMessage((msg) => {
       if (msg && msg.type === 'rohdReady') {
         readyReceived = true;
         sendContents();
       }
-      // Forward console messages from the webview shim to the extension output
       if (msg && msg.type === 'console') {
         const line = `[webview:${msg.level}] ${Array.isArray(msg.args) ? msg.args.join(' ') : String(msg.args)}`;
         try { output.appendLine(line); } catch (e) { console.log(line); }
       }
     });
 
-    // Fallback: if no ready within 2s, send contents anyway for debugging
     const readyTimeout = setTimeout(() => {
       if (!readyReceived) {
         console.warn('rohdReady not received from webview; sending vcdContents anyway');
@@ -97,36 +107,29 @@ class VcdCustomEditorProvider implements vscode.CustomTextEditorProvider {
       }
     }, 2000);
 
-    // Listen for document changes and forward
-    const docChange = vscode.workspace.onDidChangeTextDocument(e => { if (e.document === document) sendContents(); });
-    webviewPanel.onDidDispose(() => { docChange.dispose(); readyListener.dispose(); clearTimeout(readyTimeout); });
+    const fsWatcher = vscode.workspace.createFileSystemWatcher(docUri.fsPath);
+    const onChange = () => sendContents();
+    fsWatcher.onDidChange(onChange);
+    fsWatcher.onDidCreate(onChange);
+    fsWatcher.onDidDelete(onChange);
+    webviewPanel.onDidDispose(() => { fsWatcher.dispose(); readyListener.dispose(); clearTimeout(readyTimeout); });
 
-    // Forward messages from webview to host (optional save handling). Accepts either an inline 'text' or a 'uri' to re-open.
     webviewPanel.webview.onDidReceiveMessage(async (msg) => {
       if (!msg) return;
       if (msg.type === 'requestSave') {
         if (typeof msg.text === 'string') {
-          const edit = new vscode.WorkspaceEdit();
-          edit.replace(document.uri, new vscode.Range(0,0,document.lineCount,0), msg.text);
-          await vscode.workspace.applyEdit(edit);
-          await document.save();
+          try {
+            await vscode.workspace.fs.writeFile(docUri, Buffer.from(msg.text, 'utf8'));
+          } catch (e) { console.warn('Failed to write file from webview', e); }
         } else if (typeof msg.uri === 'string') {
-          // If webview provides a URI with updated contents, read and write it back to the original document.
           try {
             const updated = await vscode.workspace.fs.readFile(vscode.Uri.parse(msg.uri));
-            const text = Buffer.from(updated).toString('utf8');
-            const edit = new vscode.WorkspaceEdit();
-            edit.replace(document.uri, new vscode.Range(0,0,document.lineCount,0), text);
-            await vscode.workspace.applyEdit(edit);
-            await document.save();
-          } catch (e) {
-            console.warn('Failed to read save URI from webview', e);
-          }
+            await vscode.workspace.fs.writeFile(docUri, updated);
+          } catch (e) { console.warn('Failed to read save URI from webview', e); }
         }
       }
     });
 
-    // Initial send
     sendContents();
   }
 }
@@ -190,9 +193,18 @@ function transformHtml(html: string, webview: vscode.Webview, context: vscode.Ex
       (async function() {
         try {
           const res = await fetch(msg.uri);
+          const contentType = res.headers.get('content-type') || '';
+          if (contentType.indexOf('text') !== -1 || msg.originalUri.toLowerCase().endsWith('.vcd')) {
             const text = await res.text();
             if (window.__rohdMessageCallback) window.__rohdMessageCallback({ type: 'vcdContents', text: text, uri: msg.originalUri });
             try { window.postMessage({ type: 'vcdContents', text: text, uri: msg.originalUri }, '*'); } catch(e) { console.error('postMessage vcdContents failed', e); }
+          } else {
+            // Binary waveform formats (.fst, .ghw) — fetch as arrayBuffer and forward bytes
+            const buf = await res.arrayBuffer();
+            const uint8 = new Uint8Array(buf);
+            try { window.__rohdMessageCallback({ type: 'vcdBytes', bytes: uint8, uri: msg.originalUri }); } catch(e) {}
+            try { window.postMessage({ type: 'vcdBytes', bytes: uint8, uri: msg.originalUri }, '*'); } catch(e) { console.error('postMessage vcdBytes failed', e); }
+          }
         } catch (err) {
           console.error('Failed to fetch vcdUri', err);
           try { vscode.postMessage({ type: 'console', level: 'error', args: ['Failed to fetch vcdUri', String(err)] }); } catch(e) {}

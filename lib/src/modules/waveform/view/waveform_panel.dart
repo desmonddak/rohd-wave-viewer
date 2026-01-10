@@ -51,7 +51,6 @@ class _WaveformPanelState extends State<WaveformPanel>
   final Set<LogicalKeyboardKey> _pressedKeys = {};
   double _trackedScrollOffset =
       0.0; // Track scroll offset for zoom calculations
-  bool _scrollRebuildPending = false;
   // Guard to prevent scroll listener from overwriting _trackedScrollOffset during zoom
   bool _zoomInProgress = false;
 
@@ -131,7 +130,8 @@ class _WaveformPanelState extends State<WaveformPanel>
       // Lightweight debug: log unexpected messages to help diagnose host noise
       if (source == null || mtype == null) {
         debugPrint(
-            '[WaveformPanel] host message ignored (no source/type): ${data.runtimeType}');
+          '[WaveformPanel] host message ignored (no source/type): ${data.runtimeType}',
+        );
         return;
       }
 
@@ -143,9 +143,6 @@ class _WaveformPanelState extends State<WaveformPanel>
           deltaY = (data['deltaY'] is num) ? data['deltaY'] as num : 0;
           clientX = (data['clientX'] is num) ? data['clientX'] as num : null;
         } catch (_) {}
-
-        debugPrint(
-            '[WaveformPanel] shift_wheel received deltaY=$deltaY clientX=$clientX');
 
         // Immediately call JS force repaint before processing
         _callJsForceRepaint();
@@ -181,19 +178,12 @@ class _WaveformPanelState extends State<WaveformPanel>
 
   void _onHorizontalScroll() {
     // Update tracked scroll offset synchronously for zoom math and
-    // schedule a single rebuild per frame to avoid excessive rebuilds.
+    // let listeners (e.g., header AnimatedBuilder) rebuild in the same frame.
     // Skip if a zoom operation is in progress to prevent race conditions.
     if (_zoomInProgress) return;
     if (_horizontalScrollController.hasClients) {
       _trackedScrollOffset = _horizontalScrollController.offset;
     }
-
-    if (_scrollRebuildPending) return;
-    _scrollRebuildPending = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() {});
-      _scrollRebuildPending = false;
-    });
   }
 
   @override
@@ -291,14 +281,18 @@ class _WaveformPanelState extends State<WaveformPanel>
         //                 = currentScrollOffset * scale + focalViewportX * (scale - 1)
         final double oldContentX = currentScrollOffset + focalViewportX;
         final double newContentX = oldContentX * scale;
-        targetScrollOffset =
-            (newContentX - focalViewportX).clamp(0.0, newMaxExtent);
+        targetScrollOffset = (newContentX - focalViewportX).clamp(
+          0.0,
+          newMaxExtent,
+        );
       } else {
         // No focal point: preserve scroll fraction
         final double scrollFraction =
             oldMaxExtent > 0 ? currentScrollOffset / oldMaxExtent : 0.0;
-        targetScrollOffset =
-            (scrollFraction * newMaxExtent).clamp(0.0, newMaxExtent);
+        targetScrollOffset = (scrollFraction * newMaxExtent).clamp(
+          0.0,
+          newMaxExtent,
+        );
       }
 
       // Store the pending scroll offset - will be applied in build() after layout
@@ -340,8 +334,10 @@ class _WaveformPanelState extends State<WaveformPanel>
     } else {
       // Estimate was off - recompute proportionally
       finalOffset = estimatedMaxExtent > 0
-          ? (targetOffset * actualMaxExtent / estimatedMaxExtent)
-              .clamp(0.0, actualMaxExtent)
+          ? (targetOffset * actualMaxExtent / estimatedMaxExtent).clamp(
+              0.0,
+              actualMaxExtent,
+            )
           : 0.0;
     }
 
@@ -350,12 +346,14 @@ class _WaveformPanelState extends State<WaveformPanel>
     if ((finalOffset - currentOffset).abs() > 0.5) {
       _trackedScrollOffset = finalOffset;
       _horizontalScrollController.jumpTo(finalOffset);
+      // Immediately nudge the JS compositor after applying the pan
+      _callJsForceRepaint();
     }
 
     // Force repaint for embedded webviews.
     // Keep _zoomInProgress true until all frames complete to prevent
     // the scroll listener from interfering during the repaint frames.
-    _forceMultipleFrameUpdates(2, () {
+    _forceMultipleFrameUpdates(3, () {
       _zoomInProgress = false;
     });
   }
@@ -363,8 +361,10 @@ class _WaveformPanelState extends State<WaveformPanel>
   void _restoreScrollFraction(double scrollFraction, {int retries = 10}) {
     if (_horizontalScrollController.hasClients) {
       final newMaxExtent = _horizontalScrollController.position.maxScrollExtent;
-      final newOffset =
-          (scrollFraction * newMaxExtent).clamp(0.0, newMaxExtent);
+      final newOffset = (scrollFraction * newMaxExtent).clamp(
+        0.0,
+        newMaxExtent,
+      );
       // Silent restore
       if (newMaxExtent > 0 || retries <= 0) {
         try {
@@ -390,8 +390,10 @@ class _WaveformPanelState extends State<WaveformPanel>
     final screenWidth = MediaQuery.of(context).size.width;
     final panStep = screenWidth * 0.1; // Pan 10% of screen width
     _horizontalScrollController.animateTo(
-      (offset - panStep)
-          .clamp(0.0, _horizontalScrollController.position.maxScrollExtent),
+      (offset - panStep).clamp(
+        0.0,
+        _horizontalScrollController.position.maxScrollExtent,
+      ),
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
     );
@@ -402,8 +404,10 @@ class _WaveformPanelState extends State<WaveformPanel>
     final screenWidth = MediaQuery.of(context).size.width;
     final panStep = screenWidth * 0.1;
     _horizontalScrollController.animateTo(
-      (offset + panStep)
-          .clamp(0.0, _horizontalScrollController.position.maxScrollExtent),
+      (offset + panStep).clamp(
+        0.0,
+        _horizontalScrollController.position.maxScrollExtent,
+      ),
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
     );
@@ -507,10 +511,7 @@ class _WaveformPanelState extends State<WaveformPanel>
 
     final double maxScrollExtent =
         _horizontalScrollController.position.maxScrollExtent;
-    final clampedOffset = desiredScrollOffset.clamp(
-      0.0,
-      maxScrollExtent,
-    );
+    final clampedOffset = desiredScrollOffset.clamp(0.0, maxScrollExtent);
 
     _horizontalScrollController.animateTo(
       clampedOffset,
@@ -607,12 +608,6 @@ class _WaveformPanelState extends State<WaveformPanel>
 
       final scrollDelta = event.scrollDelta.dy;
 
-      // Debug logging to confirm events reach Flutter
-      try {
-        debugPrint(
-            '[WaveformPanel] PointerScrollEvent deltaY=$scrollDelta shift=$shiftPressed');
-      } catch (_) {}
-
       // Determine mouse position relative to viewport (used for zoom focal point)
       final RenderBox box = context.findRenderObject() as RenderBox;
       final local = box.globalToLocal(event.position);
@@ -640,8 +635,10 @@ class _WaveformPanelState extends State<WaveformPanel>
           // PointerScrollEvent dy is typically positive when scrolling down
           final bool scrollDown = scrollDelta > 0;
           final double newOffset =
-              (currentOffset + (scrollDown ? panStep : -panStep))
-                  .clamp(0.0, maxExtent);
+              (currentOffset + (scrollDown ? panStep : -panStep)).clamp(
+            0.0,
+            maxExtent,
+          );
           _horizontalScrollController.jumpTo(newOffset);
           // Update tracked offset as well
           _trackedScrollOffset = newOffset;
@@ -688,223 +685,243 @@ class _WaveformPanelState extends State<WaveformPanel>
     final screenHeight = MediaQuery.of(context).size.height;
 
     return BlocBuilder<RohdModuleBloc, RohdModuleState>(
-        builder: (context, state) {
-      // Get time range from metadata, default to 20 if not available
-      final endTime = state.moduleStructure.metadata.endTime;
-      final timescale = endTime > 0 ? endTime : 20;
+      builder: (context, state) {
+        // Get time range from metadata, default to 20 if not available
+        final endTime = state.moduleStructure.metadata.endTime;
+        final timescale = endTime > 0 ? endTime : 20;
 
-      return Focus(
-        autofocus: true,
-        child: KeyboardListener(
-          focusNode: _focusNode,
-          onKeyEvent: _handleKeyEvent,
-          // Use LayoutBuilder to get actual widget width, not full screen width
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final actualWidth = constraints.maxWidth;
-              // Preserve scroll fraction when the available width changes (window resize)
-              final zoomedWidth = actualWidth * _zoomLevel;
-              // Do not emit verbose debug logs in production
-              if (_lastActualWidth == null) {
-                _lastActualWidth = actualWidth;
-              } else if (_lastActualWidth != actualWidth) {
-                final oldActual = _lastActualWidth!;
-                final oldZoomedWidth = oldActual * _zoomLevel;
-                final oldMaxScrollExtent =
-                    (oldZoomedWidth - oldActual).clamp(0.0, double.infinity);
-                final double scrollFraction = (oldMaxScrollExtent > 0 &&
-                        _horizontalScrollController.hasClients)
-                    ? (_horizontalScrollController.offset / oldMaxScrollExtent)
-                    : 0.0;
-                // Resize event handled silently
-                _lastActualWidth = actualWidth;
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _restoreScrollFraction(scrollFraction);
-                });
-              }
+        return Focus(
+          autofocus: true,
+          child: KeyboardListener(
+            focusNode: _focusNode,
+            onKeyEvent: _handleKeyEvent,
+            // Use LayoutBuilder to get actual widget width, not full screen width
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final actualWidth = constraints.maxWidth;
+                // Preserve scroll fraction when the available width changes (window resize)
+                final zoomedWidth = actualWidth * _zoomLevel;
+                // Do not emit verbose debug logs in production
+                if (_lastActualWidth == null) {
+                  _lastActualWidth = actualWidth;
+                } else if (_lastActualWidth != actualWidth) {
+                  final oldActual = _lastActualWidth!;
+                  final oldZoomedWidth = oldActual * _zoomLevel;
+                  final oldMaxScrollExtent = (oldZoomedWidth - oldActual).clamp(
+                    0.0,
+                    double.infinity,
+                  );
+                  final double scrollFraction = (oldMaxScrollExtent > 0 &&
+                          _horizontalScrollController.hasClients)
+                      ? (_horizontalScrollController.offset /
+                          oldMaxScrollExtent)
+                      : 0.0;
+                  // Resize event handled silently
+                  _lastActualWidth = actualWidth;
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _restoreScrollFraction(scrollFraction);
+                  });
+                }
 
-              // Apply pending scroll offset from zoom operation.
-              // This happens during build, after layout constraints are known
-              // but before paint, ensuring atomic zoom+scroll visual update.
-              if (_pendingScrollOffset != null &&
-                  _horizontalScrollController.hasClients) {
-                final pending = _pendingScrollOffset!;
-                _pendingScrollOffset = null;
-                // Use correctPixels to update position synchronously without
-                // triggering notifications or bounds checking. This ensures
-                // the scroll position is correct when painters run.
-                final position = _horizontalScrollController.position;
-                // Calculate actual max extent based on new zoomed width
-                final maxExtent = (zoomedWidth - actualWidth).clamp(0.0, double.infinity);
-                final clampedOffset = pending.clamp(0.0, maxExtent);
-                position.correctPixels(clampedOffset);
-                _trackedScrollOffset = clampedOffset;
-              }
+                // Apply pending scroll offset from zoom operation.
+                // This happens during build, after layout constraints are known
+                // but before paint, ensuring atomic zoom+scroll visual update.
+                if (_pendingScrollOffset != null &&
+                    _horizontalScrollController.hasClients) {
+                  final pending = _pendingScrollOffset!;
+                  _pendingScrollOffset = null;
+                  // Use correctPixels to update position synchronously without
+                  // triggering notifications or bounds checking. This ensures
+                  // the scroll position is correct when painters run.
+                  final position = _horizontalScrollController.position;
+                  // Calculate actual max extent based on new zoomed width
+                  final maxExtent = (zoomedWidth - actualWidth).clamp(
+                    0.0,
+                    double.infinity,
+                  );
+                  final clampedOffset = pending.clamp(0.0, maxExtent);
+                  position.correctPixels(clampedOffset);
+                  _trackedScrollOffset = clampedOffset;
+                  // Nudge the webview to ensure the pan is rendered
+                  _callJsForceRepaint();
+                }
 
-              // Calculate visible time range for timescale
-              // When zoomed, the visible range is always timescale / zoomLevel
-              final visibleTimeRange = timescale.toDouble() / _zoomLevel;
+                // Calculate visible time range for timescale
+                // When zoomed, the visible range is always timescale / zoomLevel
+                final visibleTimeRange = timescale.toDouble() / _zoomLevel;
 
-              // Calculate start time based on scroll position. Prefer the
-              // tracked scroll offset updated by the throttled listener to
-              // avoid tight coupling to controller reads during fast pans.
-              final scrollOffset = _horizontalScrollController.hasClients
-                  ? _trackedScrollOffset
-                  : 0.0;
-              final maxScrollExtent = zoomedWidth - actualWidth;
-              final scrollFraction =
-                  maxScrollExtent > 0 ? scrollOffset / maxScrollExtent : 0.0;
-              final maxStartTime = timescale.toDouble() - visibleTimeRange;
-              final visibleStartTime = scrollFraction * maxStartTime;
+                // Suppress verbose waveform panel logging
 
-              // Suppress verbose waveform panel logging
-
-              return Column(
-                children: [
-                  // Fixed timescale header - does NOT scroll
-                  SizedBox(
-                    height: 50,
-                    width: actualWidth,
-                    child: TimescaleWidget(
-                      zoomLevel: _zoomLevel,
-                      finalTime: visibleTimeRange,
-                      startTime: visibleStartTime,
-                      viewportWidth: actualWidth,
+                return Column(
+                  children: [
+                    // Fixed timescale header that rebuilds in sync with scroll
+                    SizedBox(
+                      height: 50,
+                      width: actualWidth,
+                      child: AnimatedBuilder(
+                        animation: _horizontalScrollController,
+                        builder: (context, _) {
+                          final double offset =
+                              _horizontalScrollController.hasClients
+                                  ? _horizontalScrollController.offset
+                                  : _trackedScrollOffset;
+                          final double maxExtent = (zoomedWidth - actualWidth)
+                              .clamp(0.0, double.infinity);
+                          final double fraction =
+                              maxExtent > 0 ? (offset / maxExtent) : 0.0;
+                          final double maxStart =
+                              timescale.toDouble() - visibleTimeRange;
+                          final double startTime = fraction * maxStart;
+                          return TimescaleWidget(
+                            zoomLevel: _zoomLevel,
+                            finalTime: visibleTimeRange,
+                            startTime: startTime,
+                            viewportWidth: actualWidth,
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                  // Scrollable content below
-                  Expanded(
-                    child: Stack(
-                      children: [
-                        Listener(
-                          // Capture pointer signals (wheel) but defer other pointer
-                          // events to child so widgets like the Scrollbar can receive
-                          // pointer down/drag events.
-                          behavior: HitTestBehavior.deferToChild,
-                          onPointerSignal: (event) {
-                            _handleScroll(event, context);
-                          },
-                          onPointerDown: (event) {
-                            // When the user presses down while holding Ctrl, suppress
-                            // the default scroll physics so our custom onPan handlers
-                            // can manage panning. We check the current keyboard
-                            // state directly to be resilient to missed key events.
-                            final bool ctrlPressed = _isCtrlPressed();
-                            if (ctrlPressed && !_suppressScrollPhysics) {
-                              setState(() {
-                                _suppressScrollPhysics = true;
-                              });
-                            }
-                          },
-                          onPointerUp: (event) {
-                            if (_suppressScrollPhysics) {
-                              setState(() {
-                                _suppressScrollPhysics = false;
-                              });
-                            }
-                          },
-                          child: ScrollConfiguration(
-                            behavior: _buildCustomScrollBehavior(context),
-                            child: Theme(
-                              data: Theme.of(context).copyWith(
-                                scrollbarTheme: ScrollbarThemeData(
-                                  thumbColor:
-                                      WidgetStateProperty.all(Colors.white),
+                    // Scrollable content below
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          Listener(
+                            // Capture pointer signals (wheel) but defer other pointer
+                            // events to child so widgets like the Scrollbar can receive
+                            // pointer down/drag events.
+                            behavior: HitTestBehavior.deferToChild,
+                            onPointerSignal: (event) {
+                              _handleScroll(event, context);
+                            },
+                            onPointerDown: (event) {
+                              // When the user presses down while holding Ctrl, suppress
+                              // the default scroll physics so our custom onPan handlers
+                              // can manage panning. We check the current keyboard
+                              // state directly to be resilient to missed key events.
+                              final bool ctrlPressed = _isCtrlPressed();
+                              if (ctrlPressed && !_suppressScrollPhysics) {
+                                setState(() {
+                                  _suppressScrollPhysics = true;
+                                });
+                              }
+                            },
+                            onPointerUp: (event) {
+                              if (_suppressScrollPhysics) {
+                                setState(() {
+                                  _suppressScrollPhysics = false;
+                                });
+                              }
+                            },
+                            child: ScrollConfiguration(
+                              behavior: _buildCustomScrollBehavior(context),
+                              child: Theme(
+                                data: Theme.of(context).copyWith(
+                                  scrollbarTheme: ScrollbarThemeData(
+                                    thumbColor: WidgetStateProperty.all(
+                                      Colors.white,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              child: Scrollbar(
-                                interactive: true,
-                                thumbVisibility: true,
-                                controller: _horizontalScrollController,
-                                child: SingleChildScrollView(
+                                child: Scrollbar(
+                                  interactive: true,
+                                  thumbVisibility: true,
                                   controller: _horizontalScrollController,
-                                  scrollDirection: Axis.horizontal,
-                                  // Allow normal scroll physics (so the scrollbar is draggable)
-                                  // unless we're intentionally suppressing them for Ctrl+drag
-                                  // custom panning.
-                                  physics: _suppressScrollPhysics
-                                      ? const NeverScrollableScrollPhysics()
-                                      : const ClampingScrollPhysics(),
-                                  child: GestureDetector(
-                                    behavior: HitTestBehavior.deferToChild,
-                                    onTap: () {
-                                      // Request focus when tapped so keyboard events work
-                                      _focusNode.requestFocus();
-                                    },
-                                    onPanStart: (details) {
-                                      _focusNode.requestFocus();
-                                      // Only start mouse panning when Control key is held.
-                                      final bool ctrlPressed = _isCtrlPressed();
-                                      if (ctrlPressed) {
-                                        setState(() {
-                                          _isMousePanning = true;
-                                          _lastPanPosition =
-                                              details.globalPosition;
-                                        });
-                                      }
-                                    },
-                                    onPanUpdate: (details) {
-                                      if (!_isMousePanning ||
-                                          _lastPanPosition == null) {
-                                        return; // Ignore pan updates when not in mouse-panning mode
-                                      }
+                                  child: SingleChildScrollView(
+                                    controller: _horizontalScrollController,
+                                    scrollDirection: Axis.horizontal,
+                                    // Allow normal scroll physics (so the scrollbar is draggable)
+                                    // unless we're intentionally suppressing them for Ctrl+drag
+                                    // custom panning.
+                                    physics: _suppressScrollPhysics
+                                        ? const NeverScrollableScrollPhysics()
+                                        : const ClampingScrollPhysics(),
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.deferToChild,
+                                      onTap: () {
+                                        // Request focus when tapped so keyboard events work
+                                        _focusNode.requestFocus();
+                                      },
+                                      onPanStart: (details) {
+                                        _focusNode.requestFocus();
+                                        // Only start mouse panning when Control key is held.
+                                        final bool ctrlPressed =
+                                            _isCtrlPressed();
+                                        if (ctrlPressed) {
+                                          setState(() {
+                                            _isMousePanning = true;
+                                            _lastPanPosition =
+                                                details.globalPosition;
+                                          });
+                                        }
+                                      },
+                                      onPanUpdate: (details) {
+                                        if (!_isMousePanning ||
+                                            _lastPanPosition == null) {
+                                          return; // Ignore pan updates when not in mouse-panning mode
+                                        }
 
-                                      final deltaX = _lastPanPosition!.dx -
-                                          details.globalPosition.dx;
-                                      final deltaY = _lastPanPosition!.dy -
-                                          details.globalPosition.dy;
+                                        final deltaX = _lastPanPosition!.dx -
+                                            details.globalPosition.dx;
+                                        final deltaY = _lastPanPosition!.dy -
+                                            details.globalPosition.dy;
 
-                                      // Handle horizontal panning
-                                      final newHorizontalOffset =
-                                          (_horizontalScrollController.offset +
-                                                  deltaX)
-                                              .clamp(
-                                        0.0,
-                                        _horizontalScrollController
-                                            .position.maxScrollExtent,
-                                      );
-                                      _horizontalScrollController
-                                          .jumpTo(newHorizontalOffset);
-
-                                      // Handle vertical scrolling with this panel's own controller
-                                      if (_verticalScrollController
-                                          .hasClients) {
-                                        final newVerticalOffset =
-                                            (_verticalScrollController.offset +
-                                                    deltaY)
+                                        // Handle horizontal panning
+                                        final newHorizontalOffset =
+                                            (_horizontalScrollController
+                                                        .offset +
+                                                    deltaX)
                                                 .clamp(
                                           0.0,
-                                          _verticalScrollController
+                                          _horizontalScrollController
                                               .position.maxScrollExtent,
                                         );
-                                        _verticalScrollController
-                                            .jumpTo(newVerticalOffset);
-                                      }
+                                        _horizontalScrollController.jumpTo(
+                                          newHorizontalOffset,
+                                        );
 
-                                      _lastPanPosition = details.globalPosition;
-                                    },
-                                    onPanEnd: (details) {
-                                      setState(() {
-                                        _lastPanPosition = null;
-                                        _isMousePanning = false;
-                                      });
-                                    },
-                                    child: SizedBox(
-                                      width: zoomedWidth,
-                                      height: screenHeight -
-                                          50, // Subtract timescale height
-                                      child: WaveformBackground(
-                                        // Key uses actual width only so the background State
-                                        // is preserved when `_zoomLevel` changes.
-                                        key: _backgroundKey,
-                                        timescale: timescale,
-                                        verticalScrollController:
-                                            _verticalScrollController,
-                                        zoomLevel: _zoomLevel,
-                                        horizontalScrollController:
-                                            _horizontalScrollController,
-                                        screenWidth: actualWidth,
-                                        isCtrlPressed: _isCtrlPressed,
+                                        // Handle vertical scrolling with this panel's own controller
+                                        if (_verticalScrollController
+                                            .hasClients) {
+                                          final newVerticalOffset =
+                                              (_verticalScrollController
+                                                          .offset +
+                                                      deltaY)
+                                                  .clamp(
+                                            0.0,
+                                            _verticalScrollController
+                                                .position.maxScrollExtent,
+                                          );
+                                          _verticalScrollController.jumpTo(
+                                            newVerticalOffset,
+                                          );
+                                        }
+
+                                        _lastPanPosition =
+                                            details.globalPosition;
+                                      },
+                                      onPanEnd: (details) {
+                                        setState(() {
+                                          _lastPanPosition = null;
+                                          _isMousePanning = false;
+                                        });
+                                      },
+                                      child: SizedBox(
+                                        width: zoomedWidth,
+                                        height: screenHeight -
+                                            50, // Subtract timescale height
+                                        child: WaveformBackground(
+                                          // Key uses actual width only so the background State
+                                          // is preserved when `_zoomLevel` changes.
+                                          key: _backgroundKey,
+                                          timescale: timescale,
+                                          verticalScrollController:
+                                              _verticalScrollController,
+                                          zoomLevel: _zoomLevel,
+                                          horizontalScrollController:
+                                              _horizontalScrollController,
+                                          screenWidth: actualWidth,
+                                          isCtrlPressed: _isCtrlPressed,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -912,17 +929,17 @@ class _WaveformPanelState extends State<WaveformPanel>
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              );
-            },
+                  ],
+                );
+              },
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   }
 }
 
@@ -930,7 +947,10 @@ class _WaveformPanelState extends State<WaveformPanel>
 class _NoMouseWheelScrollBehavior extends ScrollBehavior {
   @override
   Widget buildScrollbar(
-      BuildContext context, Widget child, ScrollableDetails details) {
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
     return child;
   }
 

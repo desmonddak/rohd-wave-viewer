@@ -1,6 +1,9 @@
 // Consolidated IO/native platform implementation.
 // All no-JS shims and native helpers are inlined here.
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart'
+    show consolidateHttpClientResponseBytes;
 
 // ============================================================================
 // File utilities
@@ -10,6 +13,29 @@ import 'dart:io';
 Future<List<int>> readFileBytes(String path) async {
   final file = File(path);
   return await file.readAsBytes();
+}
+
+/// Fetch bytes for native platforms. Supports file:// and http(s) URLs.
+Future<Uint8List> fetchBytes(String uri) async {
+  try {
+    final u = Uri.parse(uri);
+    if (u.scheme == 'file' || u.scheme.isEmpty) {
+      final path = u.scheme == 'file' ? u.toFilePath() : uri;
+      final bytes = await readFileBytes(path);
+      return Uint8List.fromList(bytes);
+    } else if (u.scheme == 'http' || u.scheme == 'https') {
+      final client = HttpClient();
+      final req = await client.getUrl(u);
+      final resp = await req.close();
+      if (resp.statusCode != 200) throw Exception('HTTP ${resp.statusCode}');
+      final bytes = await consolidateHttpClientResponseBytes(resp);
+      return Uint8List.fromList(bytes);
+    } else {
+      throw UnsupportedError('Unsupported URI scheme: ${u.scheme}');
+    }
+  } catch (e) {
+    rethrow;
+  }
 }
 
 // ============================================================================
@@ -103,6 +129,7 @@ void requestAnimationFrame(Function callback) {
 }
 
 // Public embed API wrappers (moved from lib/embed.dart)
-void signalEmbedReady([Map<String, dynamic>? info]) => signalEmbedReadyImpl(info);
+void signalEmbedReady([Map<String, dynamic>? info]) =>
+    signalEmbedReadyImpl(info);
 void postMessageToHost(Object message) => postMessageToHostImpl(message);
 bool isShiftDownFromJs() => isShiftDownFromJsImpl();

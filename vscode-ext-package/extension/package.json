@@ -11,10 +11,6 @@
   "engines": {
     "vscode": "^1.79.0"
   },
-  "activationEvents": [
-    "onCommand:rohd-wave-viewer.open",
-    "onCustomEditor:rohdWaveViewer.vcd"
-  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -31,6 +27,12 @@
         "selector": [
           {
             "filenamePattern": "*.vcd"
+          },
+          {
+            "filenamePattern": "*.fst"
+          },
+          {
+            "filenamePattern": "*.ghw"
           }
         ]
       }

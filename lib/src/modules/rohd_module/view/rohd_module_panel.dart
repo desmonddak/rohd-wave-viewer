@@ -98,52 +98,129 @@ class _RohdModulePanelState extends State<RohdModulePanel> {
   }
 }
 
-class ModuleTree extends StatelessWidget {
+class ModuleTree extends StatefulWidget {
   final ModuleStructure moduleStructure;
 
   const ModuleTree({super.key, required this.moduleStructure});
 
   @override
-  Widget build(BuildContext context) {
-    final bodyHeight = MediaQuery.of(context).size.height / 2 - 80;
-    final treeController = TreeController<Module>(
-      roots: moduleStructure.modules,
+  State<ModuleTree> createState() => _ModuleTreeState();
+}
+
+class _ModuleTreeState extends State<ModuleTree> {
+  late TreeController<Module> treeController;
+
+  @override
+  void initState() {
+    super.initState();
+    treeController = TreeController<Module>(
+      roots: widget.moduleStructure.modules,
       childrenProvider: (Module module) => module.subModules,
     );
+  }
+
+  @override
+  void didUpdateWidget(ModuleTree oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Only rebuild the controller if the module structure changed
+    if (widget.moduleStructure != oldWidget.moduleStructure) {
+      treeController = TreeController<Module>(
+        roots: widget.moduleStructure.modules,
+        childrenProvider: (Module module) => module.subModules,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    treeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bodyHeight = MediaQuery.of(context).size.height / 2 - 80;
 
     // TreeView have unbounded height
-    return SizedBox(
-      height: bodyHeight,
-      child: TreeView<Module>(
-        treeController: treeController,
-        nodeBuilder: (BuildContext context, TreeEntry<Module> entry) {
-          return MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              onTap: () {
-                context
-                    .read<RohdModuleBloc>()
-                    .add(RohdModuleSelect(moduleStructure, entry.node));
-              },
-              child: TreeIndentation(
-                entry: entry,
-                child: Row(
-                  children: [
-                    ExpandIcon(
-                      key: GlobalObjectKey(entry.node),
-                      isExpanded: entry.isExpanded,
-                      onPressed: (_) =>
-                          treeController.toggleExpansion(entry.node),
-                    ),
-                    Flexible(
-                      child: Text(entry.node.name),
-                    ),
-                  ],
-                ),
+    return RepaintBoundary(
+      child: SizedBox(
+        height: bodyHeight,
+        child: TreeView<Module>(
+          treeController: treeController,
+          nodeBuilder: (BuildContext context, TreeEntry<Module> entry) {
+            return _ModuleTreeNode(
+              entry: entry,
+              moduleStructure: widget.moduleStructure,
+              treeController: treeController,
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _ModuleTreeNode extends StatefulWidget {
+  final TreeEntry<Module> entry;
+  final ModuleStructure moduleStructure;
+  final TreeController<Module> treeController;
+
+  const _ModuleTreeNode({
+    required this.entry,
+    required this.moduleStructure,
+    required this.treeController,
+  });
+
+  @override
+  State<_ModuleTreeNode> createState() => _ModuleTreeNodeState();
+}
+
+class _ModuleTreeNodeState extends State<_ModuleTreeNode> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: MouseRegion(
+        onEnter: (_) {
+          if (!_isHovered) {
+            setState(() => _isHovered = true);
+          }
+        },
+        onExit: (_) {
+          if (_isHovered) {
+            setState(() => _isHovered = false);
+          }
+        },
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: () {
+            context.read<RohdModuleBloc>().add(
+                  RohdModuleSelect(widget.moduleStructure, widget.entry.node),
+                );
+          },
+          child: Container(
+            color: _isHovered
+                ? Colors.grey.withAlpha((0.1 * 255).toInt())
+                : Colors.transparent,
+            child: TreeIndentation(
+              entry: widget.entry,
+              child: Row(
+                children: [
+                  ExpandIcon(
+                    key: GlobalObjectKey(widget.entry.node),
+                    isExpanded: widget.entry.isExpanded,
+                    onPressed: (_) => widget.treeController
+                        .toggleExpansion(widget.entry.node),
+                  ),
+                  Flexible(
+                    child: Text(widget.entry.node.name),
+                  ),
+                ],
               ),
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }

@@ -52,9 +52,11 @@
     // Called from Dart after zoom operations. Simplified to reduce overhead.
     window.rohdForceRepaint = function() {
       window._rohdRepaintCounter++;
-      
+      // Verbose logging disabled - uncomment to debug:
+      // console.log('[rohdForceRepaint] run', window._rohdRepaintCounter);
+
       var canvases = document.querySelectorAll('canvas');
-      
+
       // Strategy 1: Touch the canvas transform to force GPU recalculation
       canvases.forEach(function(canvas) {
         var z = (window._rohdRepaintCounter % 2 === 0) ? '0.001px' : '0.002px';
@@ -62,11 +64,61 @@
         void canvas.offsetHeight; // Force sync reflow
       });
 
-      // Strategy 2: Single animation frame to reset transforms
+      // Strategy 2: Toggle a tiny compositor nudge element's opacity
+      try {
+        var nudge = document.getElementById('rohd-compositor-nudge');
+        if (nudge) {
+          nudge.style.willChange = 'opacity';
+          nudge.style.opacity = (window._rohdRepaintCounter % 2 === 0) ? '0.01' : '0.02';
+          void nudge.offsetHeight;
+        }
+      } catch (e) {}
+
+      // Strategy 3: Simulate a right-click (contextmenu) which forces repaint
+      // without triggering marker placement. We prevent default to avoid
+      // showing an actual context menu.
+      try {
+        var canvas = document.querySelector('canvas');
+        if (canvas) {
+          var rightClick = new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+            button: 2,
+            buttons: 2,
+            clientX: 1,
+            clientY: 1,
+            view: window
+          });
+          // Temporarily add a handler to prevent the menu
+          var handler = function(e) { e.preventDefault(); e.stopPropagation(); };
+          canvas.addEventListener('contextmenu', handler, {capture: true, once: true});
+          canvas.dispatchEvent(rightClick);
+        }
+      } catch (e) {}
+
+      // Strategy 4: Dispatch a window resize event - some webviews flush on resize
+      try { window.dispatchEvent(new Event('resize')); } catch (e) {}
+
+      // Strategy 5: Simulate pointerleave/pointerenter on the document body
+      try {
+        var leaveEvent = new PointerEvent('pointerleave', {bubbles: true, cancelable: true});
+        document.body.dispatchEvent(leaveEvent);
+        var enterEvent = new PointerEvent('pointerenter', {bubbles: true, cancelable: true});
+        document.body.dispatchEvent(enterEvent);
+      } catch (e) {}
+
+      // Strategy 6: Trigger a blur/focus cycle on window as last resort
+      try {
+        if (document.hasFocus && document.hasFocus()) {
+          window.dispatchEvent(new Event('blur'));
+          window.dispatchEvent(new Event('focus'));
+        }
+      } catch (e) {}
+
+      // Strategy 6: Animation frames to ensure repaint and reset transforms
       requestAnimationFrame(function() {
-        canvases.forEach(function(canvas) {
-          canvas.style.transform = '';
-        });
+        canvases.forEach(function(canvas) { canvas.style.transform = ''; });
+        requestAnimationFrame(function() { void document.body.offsetHeight; });
       });
     };
 

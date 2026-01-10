@@ -5,6 +5,7 @@
 library platform_web;
 
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:js/js.dart';
 import 'package:js/js_util.dart' as js_util;
 import 'package:flutter_web_plugins/flutter_web_plugins.dart' as web_plugins;
@@ -89,7 +90,8 @@ void postMessageToHostImpl(Object message) {
     if (embed != null) {
       final postFn = js_util.getProperty(embed, 'postMessage');
       if (postFn != null) {
-        js_util.callMethod(postFn, 'call', [embed, js_util.jsify(message as Map)]);
+        js_util
+            .callMethod(postFn, 'call', [embed, js_util.jsify(message as Map)]);
       }
     }
   } catch (_) {}
@@ -114,13 +116,17 @@ bool isShiftDownFromJsImpl() {
 void jsRequestAnimationFrame(void Function() cb) {
   try {
     requestAnimationFrame(js_util.allowInterop((_) {
-      try { cb(); } catch (_) {}
+      try {
+        cb();
+      } catch (_) {}
     }));
   } catch (_) {}
 }
 
 void jsRohdForceRepaint() {
-  try { rohdForceRepaint(); } catch (_) {}
+  try {
+    rohdForceRepaint();
+  } catch (_) {}
 }
 
 // ============================================================================
@@ -160,6 +166,30 @@ void addWindowMessageListener(WindowMessageCallback cb) {
 void removeWindowMessageListener(WindowMessageCallback cb) {}
 
 // ============================================================================
+// Fetch helpers
+// ============================================================================
+
+/// Fetch bytes from a URI in the web environment. Returns a Uint8List.
+Future<Uint8List> fetchBytes(String uri) async {
+  try {
+    final req = await js_util.promiseToFuture(
+        js_util.callMethod(js_util.globalThis, 'fetch', [uri]));
+    final ab = await js_util
+        .promiseToFuture(js_util.callMethod(req, 'arrayBuffer', []));
+    // Convert to Uint8List by copying
+    final jsList = js_util.callMethod(js_util.globalThis, 'Uint8Array', [ab]);
+    final len = js_util.getProperty(jsList, 'length') as int;
+    final result = Uint8List(len);
+    for (var i = 0; i < len; i++) {
+      result[i] = js_util.getProperty(jsList, i) as int;
+    }
+    return result;
+  } catch (e) {
+    throw Exception('fetchBytes failed for $uri: $e');
+  }
+}
+
+// ============================================================================
 // URL strategy
 // ============================================================================
 
@@ -168,6 +198,7 @@ void setUrlStrategySafe(dynamic strategy) {
 }
 
 // Public embed API wrappers (moved from lib/embed.dart)
-void signalEmbedReady([Map<String, dynamic>? info]) => signalEmbedReadyImpl(info);
+void signalEmbedReady([Map<String, dynamic>? info]) =>
+    signalEmbedReadyImpl(info);
 void postMessageToHost(Object message) => postMessageToHostImpl(message);
 bool isShiftDownFromJs() => isShiftDownFromJsImpl();

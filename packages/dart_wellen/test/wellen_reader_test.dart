@@ -2,24 +2,22 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 // wellen_reader_test.dart
-// Tests for WellenReader using example VCD/FST/GHW files
+// Comprehensive tests for WellenReader using example VCD/FST/GHW files
+// NOTE: Most tests require files from surfer/examples which may not be available.
+// For CI/testing environments, use wellen_reader_simple_test.dart instead.
 //
 // 2026 January 03
 // Author: Desmond Kirkpatrick <desmond.a.kirkpatrick@intel.com>
 
 import 'dart:io';
 import 'package:test/test.dart';
-import 'package:rohd_wellen/rohd_wellen.dart';
+import 'package:dart_wellen/dart_wellen.dart';
 
-/// Path to test files from surfer examples
-String get examplesPath {
-  // Navigate from packages/rohd_wellen/test to surfer/examples
-  final testDir = Directory.current.path;
-  if (testDir.endsWith('rohd_wellen')) {
-    return '../../surfer/examples';
-  }
-  // Running from project root
-  return 'surfer/examples';
+/// Path to test fixture files
+String get fixturesPath {
+  // The fixture files are in the project root under test/fixtures
+  // From the test runner, we use the current working directory which should be the project root
+  return 'test/fixtures';
 }
 
 void main() {
@@ -29,9 +27,9 @@ void main() {
   });
 
   group('WellenReader VCD parsing', () {
-    test('loads counter.vcd and reads hierarchy', () async {
+    test('loads simple_counter.vcd and reads hierarchy', () async {
       final reader = WellenReader();
-      final vcdPath = '$examplesPath/counter.vcd';
+      final vcdPath = '$fixturesPath/simple_counter.vcd';
 
       // Skip if file doesn't exist (CI environment)
       if (!File(vcdPath).existsSync()) {
@@ -77,7 +75,7 @@ void main() {
 
     test('loads counter.vcd and reads waveform data', () async {
       final reader = WellenReader();
-      final vcdPath = '$examplesPath/counter.vcd';
+      final vcdPath = '$fixturesPath/counter.vcd';
 
       if (!File(vcdPath).existsSync()) {
         markTestSkipped('Test VCD file not found: $vcdPath');
@@ -107,7 +105,7 @@ void main() {
 
     test('loads counter.vcd and filters by time range', () async {
       final reader = WellenReader();
-      final vcdPath = '$examplesPath/counter.vcd';
+      final vcdPath = '$fixturesPath/counter.vcd';
 
       if (!File(vcdPath).existsSync()) {
         markTestSkipped('Test VCD file not found: $vcdPath');
@@ -141,7 +139,7 @@ void main() {
     test('handles signals with X and Z values', () async {
       final reader = WellenReader();
       // xx_1.vcd or xx_2.vcd likely have X values
-      final vcdPath = '$examplesPath/xx_1.vcd';
+      final vcdPath = '$fixturesPath/xx_1.vcd';
 
       if (!File(vcdPath).existsSync()) {
         markTestSkipped('Test VCD file not found: $vcdPath');
@@ -163,7 +161,7 @@ void main() {
   group('WellenReader FST parsing', () {
     test('loads many_sv_datatypes.fst and reads hierarchy', () async {
       final reader = WellenReader();
-      final fstPath = '$examplesPath/many_sv_datatypes.fst';
+      final fstPath = '$fixturesPath/many_sv_datatypes.fst';
 
       if (!File(fstPath).existsSync()) {
         markTestSkipped('Test FST file not found: $fstPath');
@@ -180,7 +178,7 @@ void main() {
 
     test('loads vhdl3.fst and reads VHDL signals', () async {
       final reader = WellenReader();
-      final fstPath = '$examplesPath/vhdl3.fst';
+      final fstPath = '$fixturesPath/vhdl3.fst';
 
       if (!File(fstPath).existsSync()) {
         markTestSkipped('Test FST file not found: $fstPath');
@@ -198,7 +196,7 @@ void main() {
   group('WellenReader GHW parsing', () {
     test('loads oscar_test.ghw and reads VHDL hierarchy', () async {
       final reader = WellenReader();
-      final ghwPath = '$examplesPath/oscar_test.ghw';
+      final ghwPath = '$fixturesPath/oscar_test.ghw';
 
       if (!File(ghwPath).existsSync()) {
         markTestSkipped('Test GHW file not found: $ghwPath');
@@ -215,7 +213,7 @@ void main() {
 
     test('loads vhdlfixed.ghw and reads fixed-point signals', () async {
       final reader = WellenReader();
-      final ghwPath = '$examplesPath/vhdlfixed.ghw';
+      final ghwPath = '$fixturesPath/vhdlfixed.ghw';
 
       if (!File(ghwPath).existsSync()) {
         markTestSkipped('Test GHW file not found: $ghwPath');
@@ -236,7 +234,7 @@ void main() {
 
       expect(reader.isLoaded, isFalse);
 
-      final vcdPath = '$examplesPath/counter.vcd';
+      final vcdPath = '$fixturesPath/counter.vcd';
       if (!File(vcdPath).existsSync()) {
         markTestSkipped('Test VCD file not found: $vcdPath');
         return;
@@ -251,8 +249,8 @@ void main() {
 
     test('can reload different files', () async {
       final reader = WellenReader();
-      final vcdPath1 = '$examplesPath/counter.vcd';
-      final vcdPath2 = '$examplesPath/counter2.vcd';
+      final vcdPath1 = '$fixturesPath/counter.vcd';
+      final vcdPath2 = '$fixturesPath/counter2.vcd';
 
       if (!File(vcdPath1).existsSync() || !File(vcdPath2).existsSync()) {
         markTestSkipped('Test VCD files not found');
@@ -276,7 +274,7 @@ void main() {
 
     test('getAllTimestamps returns sorted timestamps', () async {
       final reader = WellenReader();
-      final vcdPath = '$examplesPath/counter.vcd';
+      final vcdPath = '$fixturesPath/counter.vcd';
 
       if (!File(vcdPath).existsSync()) {
         markTestSkipped('Test VCD file not found: $vcdPath');
@@ -298,7 +296,7 @@ void main() {
   group('WellenReader edge cases', () {
     test('handles empty scope (verilator_empty_scope.vcd)', () async {
       final reader = WellenReader();
-      final vcdPath = '$examplesPath/verilator_empty_scope.vcd';
+      final vcdPath = '$fixturesPath/verilator_empty_scope.vcd';
 
       if (!File(vcdPath).existsSync()) {
         markTestSkipped('Test VCD file not found: $vcdPath');
@@ -311,7 +309,7 @@ void main() {
 
     test('handles analog signals (analog.vcd)', () async {
       final reader = WellenReader();
-      final vcdPath = '$examplesPath/analog.vcd';
+      final vcdPath = '$fixturesPath/analog.vcd';
 
       if (!File(vcdPath).existsSync()) {
         markTestSkipped('Test VCD file not found: $vcdPath');
@@ -331,7 +329,7 @@ void main() {
 
     test('handles events (events.vcd)', () async {
       final reader = WellenReader();
-      final vcdPath = '$examplesPath/events.vcd';
+      final vcdPath = '$fixturesPath/events.vcd';
 
       if (!File(vcdPath).existsSync()) {
         markTestSkipped('Test VCD file not found: $vcdPath');
@@ -353,7 +351,7 @@ void main() {
 
     test('handles non-zero start time', () async {
       final reader = WellenReader();
-      final vcdPath = '$examplesPath/gameroy_trace_with_non_zero_start.vcd';
+      final vcdPath = '$fixturesPath/gameroy_trace_with_non_zero_start.vcd';
 
       if (!File(vcdPath).existsSync()) {
         markTestSkipped('Test VCD file not found: $vcdPath');
@@ -367,12 +365,28 @@ void main() {
       // First timestamp may be non-zero
       expect(timestamps, isNotEmpty);
     });
+
+    test('loads vhdl3.vcd and reads VHDL signals', () async {
+      final reader = WellenReader();
+      final vcdPath = '$fixturesPath/vhdl3.vcd';
+
+      if (!File(vcdPath).existsSync()) {
+        markTestSkipped('Test VCD file not found: $vcdPath');
+        return;
+      }
+
+      final metadata = await reader.loadFile(vcdPath);
+      final structure = await reader.getStructure();
+
+      expect(metadata.format, equals(WaveFormat.vcd));
+      expect(structure.allSignalIds, isNotEmpty);
+    });
   });
 
   group('Signal value formatting', () {
     test('binary values are formatted correctly', () async {
       final reader = WellenReader();
-      final vcdPath = '$examplesPath/counter.vcd';
+      final vcdPath = '$fixturesPath/counter.vcd';
 
       if (!File(vcdPath).existsSync()) {
         markTestSkipped('Test VCD file not found: $vcdPath');

@@ -23,34 +23,40 @@ class SignalValuePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const PanelHeader(headerText: signalsValuePanelTitle),
-        Expanded(
-          child: Listener(
-            onPointerSignal: (event) {
-              // Block pointer signal events (mouse wheel)
-            },
-            child: BlocBuilder<WaveformModuleBloc, WaveformModuleState>(
-              builder: (context, state) {
-                return switch (state) {
-                  InitialCursor() => ListView.builder(
-                      controller: scrollController,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: 1,
-                      itemBuilder: (context, index) {
-                        return const SignalTabContainer(
-                            containerBody: Text(''));
-                      },
-                    ),
-                  UpdatedCursor() => updateSignalValue(context, state),
-                  Error() => const Text(bugReport),
-                };
-              },
+    // Rebuild when either the signal selection changes or the cursor updates
+    return BlocBuilder<SignalBloc, SignalState>(
+      builder: (signalCtx, signalState) {
+        return Column(
+          children: [
+            const PanelHeader(headerText: signalsValuePanelTitle),
+            Expanded(
+              child: Listener(
+                onPointerSignal: (event) {
+                  // Block pointer signal events (mouse wheel)
+                },
+                child: BlocBuilder<WaveformModuleBloc, WaveformModuleState>(
+                  builder: (context, state) {
+                    return switch (state) {
+                      InitialCursor() => ListView.builder(
+                          controller: scrollController,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: 1,
+                          itemBuilder: (context, index) {
+                            return const SignalTabContainer(
+                              containerBody: Text(''),
+                            );
+                          },
+                        ),
+                      UpdatedCursor() => updateSignalValue(context, state),
+                      Error() => const Text(bugReport),
+                    };
+                  },
+                ),
+              ),
             ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 
@@ -63,19 +69,65 @@ class SignalValuePanel extends StatelessWidget {
     for (final signal in monitorSignalList) {
       final scaleTime = state.timePs;
       final String val = signal.getValueByTime(scaleTime);
+      // Also compute the last-before value using the same binary-search
+      // approach used by the waveform painters to detect mismatches.
+      String? computed;
+      final data = signal.data;
+      if (data.isEmpty) {
+        computed = null;
+      } else {
+        int lo = 0;
+        int hi = data.length - 1;
+        int res = -1;
+        while (lo <= hi) {
+          final mid = (lo + hi) >> 1;
+          if (data[mid].time <= scaleTime) {
+            res = mid;
+            lo = mid + 1;
+          } else {
+            hi = mid - 1;
+          }
+        }
+        if (res != -1) computed = data[res].value;
+      }
+
+      // Log any differences between the two lookup methods to help debug
+      // marker vs painter/value-panel inconsistencies.
+      if (computed != null && val != computed) {
+        throw StateError(
+          'Value mismatch for ${signal.fullPath ?? signal.name} '
+          'at timePs=$scaleTime: getValueByTime=$val, '
+          'getValueAtOrBefore=$computed, dataLen=${data.length}',
+        );
+      }
+
       // Format numeric values as hexadecimal by default; keep 'x'/'z' as-is.
       String formatted = val;
       final lower = val.toLowerCase();
       if (!lower.contains('x') && !lower.contains('z')) {
-        final parsed = int.tryParse(val);
+        BigInt? parsed;
+        // Support common value formats: 0x.. (hex), 0b.. (binary),
+        // plain bitvector (e.g. 101010), or decimal fallback.
+        if (lower.startsWith('0x')) {
+          final digits = lower.substring(2);
+          if (digits.isNotEmpty) parsed = BigInt.tryParse(digits, radix: 16);
+        } else if (lower.startsWith('0b')) {
+          final bits = lower.substring(2);
+          if (bits.isNotEmpty) parsed = BigInt.tryParse(bits, radix: 2);
+        } else if (RegExp(r'^[01]+$').hasMatch(lower) && lower.isNotEmpty) {
+          // Plain bitvector (no 0b prefix) -> interpret as binary
+          parsed = BigInt.tryParse(lower, radix: 2);
+        } else {
+          // Fallback to decimal parsing
+          parsed = BigInt.tryParse(lower);
+        }
+
         if (parsed != null) {
           // Use signal width (bits) if available to pad hex representation
           final width = signal.width ?? 0;
-          // Number of hex digits needed
           final int hexDigits = (width <= 0) ? 0 : ((width + 3) ~/ 4);
-          final hex = parsed.toRadixString(16).toUpperCase();
-            formatted =
-              '0x${hexDigits > 0 ? hex.padLeft(hexDigits, '0') : hex}';
+          var hex = parsed.toRadixString(16).toUpperCase();
+          formatted = '0x${hexDigits > 0 ? hex.padLeft(hexDigits, '0') : hex}';
         }
       }
       valueList.add(formatted);
@@ -115,8 +167,10 @@ class SignalValuePanel extends StatelessWidget {
     double ratio = maxScaleValue / canvasWidth;
 
     // 4. Adjust the offset based on the ratio
-    Offset scaledOffset =
-        Offset(adjustedOffset.dx * ratio, adjustedOffset.dy * ratio);
+    Offset scaledOffset = Offset(
+      adjustedOffset.dx * ratio,
+      adjustedOffset.dy * ratio,
+    );
 
     return scaledOffset;
   }

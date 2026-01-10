@@ -12,13 +12,20 @@ import 'waveform.dart' show Waveform;
 import 'package:rohd_wave_viewer/src/const/const.dart';
 
 class WaveformHexaValue extends Waveform {
-  WaveformHexaValue(super.waveform, super.finalTime, super.startTime,
-      {super.signalWidth,
-      super.leftOffset = waveformLeftOffset,
-      super.viewportWidth = 0.0,
-      super.scrollOffset = 0.0,
-      super.timescale = 0,
-      super.repaint});
+  WaveformHexaValue(
+    super.waveform,
+    super.finalTime,
+    super.startTime, {
+    super.signalWidth,
+    super.leftOffset = waveformLeftOffset,
+    super.viewportWidth = 0.0,
+    super.scrollOffset = 0.0,
+    super.timescale = 0,
+    this.useBezierCrossings = true,
+    super.repaint,
+  });
+
+  final bool useBezierCrossings;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -26,129 +33,162 @@ class WaveformHexaValue extends Waveform {
     // Use the instance leftOffset passed by the caller (may already be scaled)
     final double left = leftOffset;
     final double rightPadding = left;
-    final double drawingWidth =
-        (size.width - left - rightPadding).clamp(0.0, double.infinity);
+    final double drawingWidth = (size.width - left - rightPadding).clamp(
+      0.0,
+      double.infinity,
+    );
 
     // Use ABSOLUTE time mapping: the canvas represents the full timescale.
     final int effectiveTimescale = (timescale > 0) ? timescale : finalTime;
     if (effectiveTimescale <= 0 || drawingWidth <= 0) return;
 
-    const space = 3;
-
-    // placeholders kept for compatibility; topPath/bottomPath not used in this painter
-    // final topPath = Path();
-    // final bottomPath = Path();
-
-    final xPathTop = Path();
-    final xPathBottom = Path();
-
-    final zPathTop = Path();
-    final zPathBottom = Path();
-
     // We draw within the inner drawing region (excluding left/right padding)
     // We'll render multi-bit (hex) values as two parallel green lines with
     // the textual value between them. On transitions the two lines cross so
     // the visual encoding switches sides while remaining parallel.
-    final int widthPx = drawingWidth.ceil();
 
-    // Map binary values to exact Y positions so rails match 0/1 positions
+    final double pxPerTime = drawingWidth / effectiveTimescale;
+
+    // Map binary/multi-bit values to exact Y positions so rails match 0/1 positions
     double yForBinary(String value) {
-      if (value.toLowerCase().contains('x') ||
-          value.toLowerCase().contains('z')) {
-        return size.height / 2;
-      }
       try {
         return size.height * (1 - int.parse(value));
       } catch (e) {
-        return size.height;
+        // Non-scalar values map to top by default to keep rails symmetric.
+        return 0.0;
       }
     }
 
     final double topY = yForBinary('1');
     final double bottomY = yForBinary('0');
 
-    String? prevValue;
-    bool firstPoint = true;
-
-    // side==true means greenTop corresponds to the visual top line for the
-    // current value (left side of text); when crossing we flip this flag.
-    bool side = true;
-
     final Path greenTop = Path();
     final Path greenBottom = Path();
 
-    for (int px = 0; px < widthPx; px++) {
-      final int timeAtPx = ((px / drawingWidth) * effectiveTimescale).round();
-      final value =
-          getValueAtOrBeforeTime(waveform, timeAtPx) ?? prevValue ?? '0';
-      final double x = left + px.toDouble();
+    // Adaptive connector width based on current zoom (px per time)
+    const double baseConnectorPx = 12.0;
+    const double minConnectorPx = 4.0;
+    final double connector = (baseConnectorPx * pxPerTime).clamp(
+      minConnectorPx,
+      baseConnectorPx,
+    );
+    final double half = connector / 2.0;
 
-      final lower = value.toLowerCase();
+    // Build value-change segments [start, end) across the visible timescale.
+    final List<_HexSegment> segments = [];
+    String currentValue = getValueAtOrBeforeTime(waveform, 0) ?? '0';
+    int lastTime = 0;
+    for (final data in waveform) {
+      if (data.time < 0) continue;
+      if (data.time > effectiveTimescale) break;
+      if (data.value == currentValue) continue;
+      segments.add(
+        _HexSegment(start: lastTime, end: data.time, value: currentValue),
+      );
+      lastTime = data.time;
+      currentValue = data.value;
+    }
+    if (lastTime < effectiveTimescale) {
+      segments.add(
+        _HexSegment(
+          start: lastTime,
+          end: effectiveTimescale,
+          value: currentValue,
+        ),
+      );
+    }
 
-      if (firstPoint) {
-        if (lower.contains('x')) {
-          xPathTop.moveTo(x - space, topY);
-          xPathBottom.moveTo(x - space, bottomY);
-        } else if (lower.contains('z')) {
-          zPathTop.moveTo(x - space, topY);
-          zPathBottom.moveTo(x - space, bottomY);
-        } else {
-          greenTop.moveTo(x - space, topY);
-          greenBottom.moveTo(x - space, bottomY);
-        }
-        prevValue = value;
-        firstPoint = false;
-      }
+    if (segments.isEmpty) return;
 
-      if (lower.contains('x')) {
-        xPathTop.lineTo(x, topY);
-        xPathBottom.lineTo(x, bottomY);
-        prevValue = value;
-        continue;
-      } else if (lower.contains('z')) {
-        zPathTop.lineTo(x, topY);
-        zPathBottom.lineTo(x, bottomY);
-        prevValue = value;
-        continue;
-      }
+    final double centerY = (topY + bottomY) / 2;
+    bool side = true; // flips at each segment boundary
 
-      if (value != prevValue) {
-        // Center a symmetric crossing on transition time x.
-        const double connector = 12.0;
-        const double half = connector / 2.0;
+    void drawSegment(_HexSegment s, Paint paint) {
+      final double startX = left + s.start * pxPerTime;
+      final double endX = left + s.end * pxPerTime;
+      if (endX <= startX) return;
 
-        const cpOffset = half / 2.0;
-        final p0Top = Offset(x - half, side ? topY : bottomY);
-        final p1Top = Offset(x - half + cpOffset, side ? topY : bottomY);
-        final p2Top = Offset(x + half - cpOffset, side ? bottomY : topY);
-        final p3Top = Offset(x + half, side ? bottomY : topY);
+      final double segLen = endX - startX;
+      final double ramp = (segLen / 2).clamp(0.0, half);
+      final double cp = ramp / 2.0;
 
-        final p0Bottom = Offset(x - half, side ? bottomY : topY);
-        final p1Bottom = Offset(x - half + cpOffset, side ? bottomY : topY);
-        final p2Bottom = Offset(x + half - cpOffset, side ? topY : bottomY);
-        final p3Bottom = Offset(x + half, side ? topY : bottomY);
+      final double topRail = side ? topY : bottomY;
+      final double bottomRail = side ? bottomY : topY;
 
-        final topPathSegment = Path()
-          ..moveTo(p0Top.dx, p0Top.dy)
-          ..cubicTo(p1Top.dx, p1Top.dy, p2Top.dx, p2Top.dy, p3Top.dx, p3Top.dy);
-        greenTop.addPath(topPathSegment, Offset.zero);
+      final Path topPath = Path();
+      final Path bottomPath = Path();
 
-        final bottomPathSegment = Path()
-          ..moveTo(p0Bottom.dx, p0Bottom.dy)
-          ..cubicTo(p1Bottom.dx, p1Bottom.dy, p2Bottom.dx, p2Bottom.dy,
-              p3Bottom.dx, p3Bottom.dy);
-        greenBottom.addPath(bottomPathSegment, Offset.zero);
-
-        side = !side;
-
-        greenTop.lineTo(x + half + 1, side ? topY : bottomY);
-        greenBottom.lineTo(x + half + 1, side ? bottomY : topY);
+      // Top half
+      topPath.moveTo(startX, centerY);
+      if (useBezierCrossings && ramp > 0) {
+        topPath.cubicTo(
+          startX + cp,
+          centerY,
+          startX + ramp - cp,
+          topRail,
+          startX + ramp,
+          topRail,
+        );
       } else {
-        greenTop.lineTo(x, side ? topY : bottomY);
-        greenBottom.lineTo(x, side ? bottomY : topY);
+        topPath.lineTo(startX + ramp, topRail);
+      }
+      topPath.lineTo(endX - ramp, topRail);
+      if (useBezierCrossings && ramp > 0) {
+        topPath.cubicTo(
+          endX - ramp + cp,
+          topRail,
+          endX - cp,
+          centerY,
+          endX,
+          centerY,
+        );
+      } else {
+        topPath.lineTo(endX, centerY);
       }
 
-      prevValue = value;
+      // Bottom half
+      bottomPath.moveTo(startX, centerY);
+      if (useBezierCrossings && ramp > 0) {
+        bottomPath.cubicTo(
+          startX + cp,
+          centerY,
+          startX + ramp - cp,
+          bottomRail,
+          startX + ramp,
+          bottomRail,
+        );
+      } else {
+        bottomPath.lineTo(startX + ramp, bottomRail);
+      }
+      bottomPath.lineTo(endX - ramp, bottomRail);
+      if (useBezierCrossings && ramp > 0) {
+        bottomPath.cubicTo(
+          endX - ramp + cp,
+          bottomRail,
+          endX - cp,
+          centerY,
+          endX,
+          centerY,
+        );
+      } else {
+        bottomPath.lineTo(endX, centerY);
+      }
+
+      canvas.drawPath(topPath, paint);
+      canvas.drawPath(bottomPath, paint);
+    }
+
+    for (int i = 0; i < segments.length; i++) {
+      final seg = segments[i];
+      final lower = seg.value.toLowerCase();
+      Paint segPaint = greenPaint;
+      if (lower.contains('x')) {
+        segPaint = redPaint;
+      } else if (lower.contains('z')) {
+        segPaint = yellowPaint;
+      }
+      drawSegment(seg, segPaint);
+      if (i < segments.length - 1) side = !side;
     }
 
     // After constructing paths, paint centered labels for each stable interval
@@ -171,8 +211,11 @@ class WaveformHexaValue extends Waveform {
     }
     // last interval to end
     if (curStart < effectiveTimescale) {
-      intervals
-          .add({'start': curStart, 'end': effectiveTimescale, 'value': curVal});
+      intervals.add({
+        'start': curStart,
+        'end': effectiveTimescale,
+        'value': curVal,
+      });
     }
 
     for (final it in intervals) {
@@ -180,12 +223,14 @@ class WaveformHexaValue extends Waveform {
       final int e = it['end'];
       final String v = it['value'];
       if (s >= e) continue;
+      final String label = formatValueAsHexLabel(v);
       final double sx = left + s * (drawingWidth / effectiveTimescale);
       final double ex = left + e * (drawingWidth / effectiveTimescale);
       final double centerX = (sx + ex) / 2.0;
       final tp = TextPainter(
-          text: TextSpan(text: '0x$v', style: textStyle),
-          textDirection: TextDirection.ltr);
+        text: TextSpan(text: label, style: textStyle),
+        textDirection: TextDirection.ltr,
+      );
       tp.layout();
       final double available = ex - sx - 4.0; // small padding
       if (tp.width <= available) {
@@ -193,24 +238,16 @@ class WaveformHexaValue extends Waveform {
         final double drawX = centerX - tp.width / 2;
         // Clip to drawing region
         if (drawX + tp.width >= left && drawX <= left + drawingWidth) {
-          tp.paint(canvas,
-              Offset(drawX.clamp(left, left + drawingWidth - tp.width), textY));
+          tp.paint(
+            canvas,
+            Offset(drawX.clamp(left, left + drawingWidth - tp.width), textY),
+          );
         }
       }
     }
 
-    final double rightEdgeX = left + drawingWidth;
-    greenTop.lineTo(rightEdgeX, side ? topY : bottomY);
-    greenBottom.lineTo(rightEdgeX, side ? bottomY : topY);
-
     canvas.drawPath(greenTop, greenPaint);
     canvas.drawPath(greenBottom, greenPaint);
-
-    canvas.drawPath(xPathTop, redPaint);
-    canvas.drawPath(xPathBottom, redPaint);
-
-    canvas.drawPath(zPathTop, orangePaint);
-    canvas.drawPath(zPathBottom, orangePaint);
   }
 
   @override
@@ -222,6 +259,18 @@ class WaveformHexaValue extends Waveform {
         oldDelegate.leftOffset != leftOffset ||
         oldDelegate.viewportWidth != viewportWidth ||
         oldDelegate.scrollOffset != scrollOffset ||
-        oldDelegate.timescale != timescale;
+        oldDelegate.timescale != timescale ||
+        oldDelegate.useBezierCrossings != useBezierCrossings;
   }
+}
+
+class _HexSegment {
+  const _HexSegment({
+    required this.start,
+    required this.end,
+    required this.value,
+  });
+  final int start;
+  final int end;
+  final String value;
 }

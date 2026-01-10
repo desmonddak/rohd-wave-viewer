@@ -171,10 +171,13 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
             // visibleStartTime computed from scroll fraction over maxScrollExtent
             final visibleTimeRange =
                 widget.timescale.toDouble() / widget.zoomLevel;
-            final maxScrollExtent =
-                (contentWidth - viewportWidth).clamp(0.0, double.infinity);
-            final scrollFraction =
-                (maxScrollExtent > 0) ? (scrollOffset / maxScrollExtent) : 0.0;
+            final maxScrollExtent = (contentWidth - viewportWidth).clamp(
+              0.0,
+              double.infinity,
+            );
+            final scrollFraction = (maxScrollExtent > 0)
+                ? (scrollOffset / maxScrollExtent)
+                : 0.0;
             final maxStartTime = widget.timescale.toDouble() - visibleTimeRange;
             final visibleStartTime = scrollFraction * maxStartTime;
             // Removed verbose debug logging for production
@@ -242,16 +245,17 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
                                 return;
                               }
 
-                              final double rel = ((localPos.dx - leftOffset) /
-                                      drawingContentWidth)
-                                  .clamp(0.0, 1.0);
-                              final int timeAtTap =
-                                  (rel * widget.timescale).toInt();
+                              final double rel =
+                                  ((localPos.dx - leftOffset) /
+                                          drawingContentWidth)
+                                      .clamp(0.0, 1.0);
+                              final int timeAtTap = (rel * widget.timescale)
+                                  .toInt();
 
                               // Send only marker time to BLoC
-                              context
-                                  .read<WaveformModuleBloc>()
-                                  .add(WaveformModuleOnTap(timeAtTap));
+                              context.read<WaveformModuleBloc>().add(
+                                WaveformModuleOnTap(timeAtTap),
+                              );
                             },
                             child: Listener(
                               // Block pointer signal events (mouse wheel) from scrolling
@@ -260,10 +264,9 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
                               },
                               child: ScrollConfiguration(
                                 // Disable pointer signal (mouse wheel) scrolling on ListView
-                                behavior:
-                                    ScrollConfiguration.of(context).copyWith(
-                                  scrollbars: true,
-                                ),
+                                behavior: ScrollConfiguration.of(
+                                  context,
+                                ).copyWith(scrollbars: true),
                                 child: ListView.builder(
                                   controller: widget.verticalScrollController,
                                   physics: const NeverScrollableScrollPhysics(),
@@ -308,8 +311,7 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
                       // through to the GestureDetector below.
                       Positioned.fill(
                         child: IgnorePointer(
-                          child: BlocBuilder<WaveformModuleBloc,
-                              WaveformModuleState>(
+                          child: BlocBuilder<WaveformModuleBloc, WaveformModuleState>(
                             builder: (context, state) {
                               // Use ABSOLUTE time mapping - same as WaveformBinary/WaveformHexaValue painters:
                               // contentX = leftOffset + (time / timescale) * drawingContentWidth
@@ -323,7 +325,8 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
 
                               final double drawingContentWidth =
                                   contentWidth - leftOffset - rightPadding;
-                              final double cursorContentX = leftOffset +
+                              final double cursorContentX =
+                                  leftOffset +
                                   (t.toDouble() / widget.timescale.toDouble()) *
                                       drawingContentWidth;
 
@@ -336,8 +339,10 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
                               // Y position: marker Y is stored separately and fixed
                               // For now use a fixed Y position in the center
                               const double cursorViewportY = 100.0;
-                              final cursorOffset =
-                                  Offset(cursorContentX, cursorViewportY);
+                              final cursorOffset = Offset(
+                                cursorContentX,
+                                cursorViewportY,
+                              );
                               return CursorWidget(cursorOffset);
                             },
                           ),
@@ -365,8 +370,10 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
     double ratio = maxScaleValue / canvasWidth;
 
     // 4. Adjust the offset based on the ratio
-    Offset scaledOffset =
-        Offset(adjustedOffset.dx * ratio, adjustedOffset.dy * ratio);
+    Offset scaledOffset = Offset(
+      adjustedOffset.dx * ratio,
+      adjustedOffset.dy * ratio,
+    );
 
     return scaledOffset;
   }
@@ -380,18 +387,19 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
     return localOffset;
   }
 
-    Widget drawWaveform(
-      BuildContext context,
-      List<Data> data,
-      SignalType sigType,
-      double width,
-      int startTime,
-      int visibleTimeRange,
-      double leftOffset,
-      double visibleStartTime,
-      double viewportWidth,
-      double scrollOffset,
-      int? signalWidth) {
+  Widget drawWaveform(
+    BuildContext context,
+    List<Data> data,
+    SignalType sigType,
+    double width,
+    int startTime,
+    int visibleTimeRange,
+    double leftOffset,
+    double visibleStartTime,
+    double viewportWidth,
+    double scrollOffset,
+    int? signalWidth,
+  ) {
     final painterWidth = width;
     // Removed debug logging for drawWaveform
 
@@ -416,33 +424,48 @@ class _WaveformBackgroundState extends State<WaveformBackground> {
                   // time 0 to leftOffset and time=timescale to width-rightPadding.
                   // The canvas width is contentWidth (zoomed), so waveforms scale correctly.
                   // ScrollView handles clipping to show the visible portion.
-                                    // Prefer declared `signalWidth` when available: if a signal
-                                    // is declared as 1-bit, use the binary painter regardless
-                                    // of the textual type reported by the loader. This helps
-                                    // ensure `clk`-like signals render as single-bit.
-                                    painter: (signalWidth != null && signalWidth == 1)
-                                      ? WaveformBinary(data, visibleTimeRange, startTime,
-                                        signalWidth: signalWidth,
-                                        leftOffset: leftOffset,
-                                        viewportWidth: viewportWidth,
-                                        scrollOffset: scrollOffset,
-                                        timescale: widget.timescale,
-                                        repaint: _repaintNotifier)
-                                      : (sigType == SignalType.hexadecimal
-                                        ? WaveformHexaValue(data, visibleTimeRange, startTime,
-                                          signalWidth: signalWidth,
-                                          leftOffset: leftOffset,
-                                          viewportWidth: viewportWidth,
-                                          scrollOffset: scrollOffset,
-                                          timescale: widget.timescale,
-                                          repaint: _repaintNotifier)
-                                        : WaveformBinary(data, visibleTimeRange, startTime,
-                                          signalWidth: signalWidth,
-                                          leftOffset: leftOffset,
-                                          viewportWidth: viewportWidth,
-                                          scrollOffset: scrollOffset,
-                                          timescale: widget.timescale,
-                                          repaint: _repaintNotifier)),
+                  // Prefer declared `signalWidth` when available: if a signal
+                  // is declared as 1-bit, use the binary painter regardless
+                  // of the textual type reported by the loader. This helps
+                  // ensure `clk`-like signals render as single-bit.
+                  painter: (signalWidth != null && signalWidth == 1)
+                      ? WaveformBinary(
+                          data,
+                          visibleTimeRange,
+                          startTime,
+                          signalWidth: signalWidth,
+                          leftOffset: leftOffset,
+                          viewportWidth: viewportWidth,
+                          scrollOffset: scrollOffset,
+                          timescale: widget.timescale,
+                          useBezierCrossings: true,
+                          repaint: _repaintNotifier,
+                        )
+                      : (sigType == SignalType.hexadecimal
+                            ? WaveformHexaValue(
+                                data,
+                                visibleTimeRange,
+                                startTime,
+                                signalWidth: signalWidth,
+                                leftOffset: leftOffset,
+                                viewportWidth: viewportWidth,
+                                scrollOffset: scrollOffset,
+                                timescale: widget.timescale,
+                                useBezierCrossings: true,
+                                repaint: _repaintNotifier,
+                              )
+                            : WaveformBinary(
+                                data,
+                                visibleTimeRange,
+                                startTime,
+                                signalWidth: signalWidth,
+                                leftOffset: leftOffset,
+                                viewportWidth: viewportWidth,
+                                scrollOffset: scrollOffset,
+                                timescale: widget.timescale,
+                                useBezierCrossings: true,
+                                repaint: _repaintNotifier,
+                              )),
                 );
               },
             ),
