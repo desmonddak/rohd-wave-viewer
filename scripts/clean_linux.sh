@@ -1,35 +1,32 @@
-#!/bin/bash
-# Cleanup script for ROHD Wave Viewer
-# Removes all build artifacts from Rust and Flutter
+#!/usr/bin/env bash
+# Clean script for ROHD Wave Viewer Linux desktop build
+# Removes all generated artifacts from `flutter build linux`
 
-set -e
+set -euo pipefail
 
-echo "=== ROHD Wave Viewer Cleanup Script ==="
+echo "=== Cleaning ROHD Wave Viewer Linux Build ==="
+
+# Ensure repo root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/.." || exit 1
+REPO_ROOT="$(pwd)"
+
+echo "REPO_ROOT: $REPO_ROOT"
+
+# Remove Linux build artifacts
+if [ -d "$REPO_ROOT/build/linux" ]; then
+  echo "Removing build/linux/..."
+  rm -rf "$REPO_ROOT/build/linux"
+fi
+
+# Remove native assets directory (created during build)
+if [ -d "$REPO_ROOT/build/native_assets" ]; then
+  echo "Removing build/native_assets/..."
+  rm -rf "$REPO_ROOT/build/native_assets"
+fi
+
 echo ""
-
-echo "Cleaning Rust wellen_bridge build..."
-cd rust/wellen_bridge
-cargo clean
-rm -rf target/
-echo "✓ Rust build cleaned"
+echo "=== Linux build cleaned ==="
 echo ""
-
-echo "Removing libwellen_bridge.so from Flutter bundle..."
-rm -f ../../build/linux/x64/debug/bundle/lib/libwellen_bridge.so
-rm -f ../../build/linux/x64/release/bundle/lib/libwellen_bridge.so
-echo "✓ Shared library removed"
-echo ""
-
-cd ../..
-echo "Cleaning Flutter build..."
-flutter clean
-echo "✓ Flutter build cleaned"
-echo ""
-
-echo "=== Cleanup Complete ==="
 echo "To rebuild, run:"
-echo "  1. cd rust/wellen_bridge"
-echo "  2. cargo build --release"
-echo "  3. cd ../.."
-echo "  4. flutter build linux --debug"
-echo "  5. cp rust/wellen_bridge/target/release/libwellen_bridge.so build/linux/x64/debug/bundle/lib/"
+echo "  bash scripts/build_linux.sh"

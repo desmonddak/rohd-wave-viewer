@@ -46,5 +46,7 @@ app.*.map.json
 # Let individual users select devtools options they like
 devtools_options.yaml
 rust/wellen_bridge/target
+rust/wellen_bridge/src/frb_generated.rs
 packages/dart_wellen/**/*generated.*
+packages/dart_wellen/lib/src/rust/api.dart
 packages/wellen_bridge/**/*generated.*

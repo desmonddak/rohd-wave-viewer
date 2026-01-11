@@ -29,11 +29,11 @@ void main() {
     await WellenModuleStructureApi.init();
   });
 
-  test('WASM load simple_counter.vcd via loadBytes', () async {
-    final url = '$fixturesBasePath/simple_counter.vcd';
+  test('WASM load xz_transitions.vcd via loadBytes', () async {
+    final url = '$fixturesBasePath/xz_transitions.vcd';
     final bytes = await platform.fetchBytes(url);
     final api = WellenModuleStructureApi();
-    await api.loadBytes(bytes.toList(), fileName: 'simple_counter.vcd');
+    await api.loadBytes(bytes.toList(), fileName: 'xz_transitions.vcd');
 
     final structure = await api.getModuleStructure();
     expect(structure.modules, isNotEmpty);

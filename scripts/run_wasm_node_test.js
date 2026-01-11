@@ -13,7 +13,7 @@ async function main() {
   const wasmPath = path.join(pkgDir, 'wellen_bridge_bg.wasm');
 
   if (!fs.existsSync(jsPath) || !fs.existsSync(wasmPath)) {
-    console.error('web/pkg artifacts not found. Run scripts/wellen_build.sh first.');
+    console.error('web/pkg artifacts not found. Run rust/wellen_bridge/build_wasm.sh first.');
     process.exit(2);
   }
 

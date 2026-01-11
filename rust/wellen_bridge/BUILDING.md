@@ -1,174 +1,165 @@
 # Building wellen_bridge
 
-## Rust Toolchain Requirements
+This crate builds with a single pinned Rust toolchain (1.92.0) plus helper tools. Everything installs under ~/.cargo and ~/.rustup.
 
-This project requires **two different Rust toolchains** due to dependency constraints:
+## Prerequisites
 
-### 1. Rust 1.80 - For Building flutter_rust_bridge_codegen
+Install once per environment/machine:
 
-The `flutter_rust_bridge_codegen` code generator (version 2.6.0) has dependencies that fail to compile under newer Rust versions in this environment. Use Rust 1.80 to build and install the code generator:
+```bash
+# Rust 1.92.0 toolchain
+tool/gh_actions/install_rust_1_92.sh
 
-```tcsh
-# Install Rust 1.80 toolchain
-~/.rustup/toolchains/1.80.0-x86_64-unknown-linux-gnu/bin/cargo install flutter_rust_bridge_codegen --version 2.6.0 --locked
+# WASM tools
+tool/gh_actions/install_wasm_tools.sh
+
+# Build tools + LLVM/libclang (for codegen)
+tool/gh_actions/install_build_tools.sh
 ```
 
-Or if using rustup:
+These installers auto-detect your OS and package manager, handle both CI (root) and local dev (regular user) contexts.
 
-```tcsh
-rustup install 1.80.0
-cargo +1.80.0 install flutter_rust_bridge_codegen --version 2.6.0 --locked
+Verify installation:
+
+```bash
+rustc --version        # should be 1.92.0
+wasm-pack --version
+wasm-bindgen --version
+flutter_rust_bridge_codegen --version   # should be 2.7.0
+clang --version        # verifies LLVM/libclang
 ```
 
-### 2. Rust 1.92+ (stable) - For Building wellen_bridge Library
+## Build WASM (for web)
 
-The wellen library (v0.20.1) requires:
+From the repo root, this auto-detects and builds only what's missing:
 
-- Rust 1.90.0+ for wellen itself
-- Edition 2024 support (requires Rust 1.92+)
-- Various dependencies requiring Rust 1.80+
-
-**Build the library using Rust stable (1.92):**
-
-```tcsh
-# Set stable toolchain in PATH
-setenv PATH ~/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:$PATH
-
-# Build the library
-cd /path/to/rust/wellen_bridge
-cargo build --release
+```bash
+./rust/wellen_bridge/build.sh
 ```
 
-## Generating Dart FFI Bindings
+Or explicitly:
 
-After installing the code generator with Rust 1.80, use it to generate Dart bindings. **Important**: Set PATH to use Rust stable so cargo expand can compile the wellen crate:
-
-```tcsh
-cd /home/ganewto/src/rohd/rohd-wave-viewer
-setenv PATH ~/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:$PATH
-
-~/.cargo/bin/flutter_rust_bridge_codegen generate \
-  --rust-input crate::api \
-  --rust-root rust/wellen_bridge \
-  --dart-output packages/dart_wellen/lib/src/rust \
-  --rust-output rust/wellen_bridge/src/frb_generated.rs
+```bash
+./rust/wellen_bridge/build_wasm.sh
 ```
 
-Note: Do not use --config-file with relative paths; command-line arguments work more reliably from the workspace root.
+Output lands in `web/pkg/` (wellen_bridge.js, wellen_bridge_bg.wasm, etc.).
 
-## Building the Flutter Linux App
+## Build native (for desktop)
 
-```tcsh
-cd /home/ganewto/src/rohd/rohd-wave-viewer
+From the repo root:
 
-# Build Flutter app
-flutter build linux --debug
-
-# Set LD_LIBRARY_PATH to point to the Rust library (set once per shell session)
-setenv LD_LIBRARY_PATH /home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridge/target/release
-
-# Run the app with absolute path
-/home/ganewto/src/rohd/rohd-wave-viewer/build/linux/x64/debug/bundle/rohd_wave_viewer /home/ganewto/src/rohd/rohd-wave-viewer/surfer/examples/picorv32.vcd &
+```bash
+./rust/wellen_bridge/build_native.sh
 ```
 
-**Note**: Using `LD_LIBRARY_PATH` eliminates the need to copy `libwellen_bridge.so` after each Rust rebuild, making the development iteration much faster. The environment variable only needs to be set once per shell session.
+Output lands in `rust/wellen_bridge/target/release/libwellen_bridge.so` (or .dylib on macOS, .dll on Windows).
 
-## Summary
+## Generate Dart bindings (required for both WASM and native)
 
-1. **Install codegen**: Use Rust 1.80 (one-time)
-2. **Generate bindings**: Use Rust stable in PATH (after changing api.rs)
-3. **Build library**: Use Rust 1.92+ (stable)
-4. **Build Flutter app**: `flutter build linux --debug`
-5. **Set library path**: `setenv LD_LIBRARY_PATH /path/to/rust/target/release` (once per shell)
-6. **Run app**: Use absolute path to executable
+The Dart/Rust bridge (FFI) bindings are generated from Rust annotations:
+
+```bash
+scripts/build_dart_wellen_bridge.sh
+```
+
+This:
+
+- Detects libclang via ldconfig or filesystem search
+- Runs flutter_rust_bridge_codegen to generate Dart interfaces
+- Creates `packages/dart_wellen/lib/src/rust/frb_generated.dart`
+- Creates `rust/wellen_bridge/src/frb_generated.rs`
+
+The build_wasm.sh and build_native.sh scripts automatically call this if needed.
+
+## Integrated build flows
+
+### Full WASM (web)
+
+```bash
+# One-time setup
+tool/gh_actions/install_rust_1_92.sh
+tool/gh_actions/install_wasm_tools.sh
+tool/gh_actions/install_build_tools.sh
+
+# Build (auto-generates Dart bindings, builds WASM)
+rust/wellen_bridge/build.sh
+```
+
+### Full native (desktop)
+
+```bash
+# One-time setup
+tool/gh_actions/install_rust_1_92.sh
+tool/gh_actions/install_build_tools.sh
+
+# Build Dart bindings
+scripts/build_dart_wellen_bridge.sh
+
+# Build native library
+rust/wellen_bridge/build_native.sh
+```
+
+### From Flutter app level
+
+```bash
+# Builds everything Flutter needs
+scripts/build_linux.sh        # includes native lib + Dart bindings
+scripts/build_extension.sh    # includes WASM + Dart bindings
+```
+
+## Cleaning
+
+```bash
+# Clean WASM artifacts only
+./rust/wellen_bridge/clean_wasm.sh
+
+# Clean native artifacts only
+./rust/wellen_bridge/clean_native.sh
+
+# Clean everything (native + WASM + generated FRB files)
+./rust/wellen_bridge/clean.sh
+```
+
+Manual cleanup:
+
+```bash
+cd rust/wellen_bridge
+cargo clean
+rm -rf target/
+rm -rf ../../web/pkg
+rm -f src/frb_generated.rs
+rm -f ../../packages/dart_wellen/lib/src/rust/frb_generated.dart
+```
 
 ## Troubleshooting
 
-- If cargo is using the wrong version, check `cargo --version`
-- System cargo may be older (1.75); ensure ~/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin is in PATH
-- The codegen only needs to be installed once
-- Regenerate bindings after changing api.rs
-- Use `LD_LIBRARY_PATH` to avoid copying libwellen_bridge.so after each Rust rebuild
-- In tcsh, use `setenv PATH` and `setenv LD_LIBRARY_PATH` not `export`
+**libclang not found during codegen:**
 
-## Cleaning The Rust Build and Running Tests
-
-When you need to completely clean the `wellen_bridge` crate (for example
-after switching toolchains or to resolve mysterious incremental-build
-problems), use the following steps. These commands work in `tcsh` as used in
-this workspace; equivalent `bash` commands are also shown where appropriate.
-
-1) Clean with cargo (recommended):
-
-```tcsh
-cd /home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridge
-cargo clean
+```bash
+# Set LIBCLANG_PATH if auto-detection fails
+export LIBCLANG_PATH=/usr/lib/llvm-14/lib
+scripts/build_dart_wellen_bridge.sh
 ```
 
-Or, if you built with a specific toolchain, run:
+**Rust version mismatch:**
 
-```tcsh
-rustup run 1.92.0 cargo clean
-# or
-cargo +1.92.0 clean
+```bash
+# Ensure pinned 1.92.0 is active
+source scripts/setup_rust_env.sh
+rustc --version
 ```
 
-1) Remove the `target/` directory (forceful):
+**Missing WASM target:**
 
-```tcsh
-rm -rf /home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridge/target
+```bash
+rustup target add wasm32-unknown-unknown --toolchain 1.92.0
 ```
 
-1) (Optional) Remove any copied native libraries in the Flutter bundle if you previously used the copy method:
+**Stale generated files:**
 
-```tcsh
-rm -f /home/ganewto/src/rohd/rohd-wave-viewer/build/linux/x64/debug/bundle/lib/libwellen_bridge.so
+```bash
+# Clean and rebuild
+rust/wellen_bridge/clean.sh
+rust/wellen_bridge/build.sh
 ```
-
-1) (Optional) Clean Flutter build artifacts if you want a full rebuild:
-
-```tcsh
-cd /home/ganewto/src/rohd/rohd-wave-viewer
-flutter clean
-rm -rf build/
-```
-
-1) Rebuild the Rust library:
-
-```tcsh
-cd /home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridge
-setenv PATH ~/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:$PATH
-cargo build --release
-```
-
-1) Rebuild and run the Flutter app using LD_LIBRARY_PATH:
-
-```tcsh
-cd /home/ganewto/src/rohd/rohd-wave-viewer
-flutter build linux --debug
-
-# Set library path (once per shell session)
-setenv LD_LIBRARY_PATH /home/ganewto/src/rohd/rohd-wave-viewer/rust/wellen_bridge/target/release
-
-# Run with absolute path
-/home/ganewto/src/rohd/rohd-wave-viewer/build/linux/x64/debug/bundle/rohd_wave_viewer /home/ganewto/src/rohd/rohd-wave-viewer/surfer/examples/picorv32.vcd &
-```
-
-Running unit/widget tests:
-
-- To run the project's Dart tests (including the rohd_module page tests), use
-  the regular `flutter test` command from the workspace root.
-
-```tcsh
-cd /home/ganewto/src/rohd/rohd-wave-viewer
-flutter test
-```
-
-- If a test is intentionally skipped (for example `skip: true` in a
-  `testWidgets`), enable it by removing the `skip` flag or setting it to
-  `false`. The test file `test/modules/rohd_module/view/rohd_module_page_test.dart`
-  contains a `skip: true` marker with a `TODO: enable this test!` comment.
-
-  After enabling the test, run `flutter test` and inspect failures. If tests
-  depend on native FFI output (wellen), prefer mocking the `ModuleStructureApi`
-  in tests rather than invoking the native library.

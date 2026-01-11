@@ -62,6 +62,7 @@ export RUST_TOOLCHAIN
 "$RUSTUP_BIN" toolchain list | grep -q "$RUST_TOOLCHAIN" || "$RUSTUP_BIN" toolchain install "$RUST_TOOLCHAIN"
 "$RUSTUP_BIN" target add wasm32-unknown-unknown --toolchain "$RUST_TOOLCHAIN" 2>/dev/null || true
 "$RUSTUP_BIN" component add rust-src --toolchain "$RUST_TOOLCHAIN" 2>/dev/null || true
+"$RUSTUP_BIN" component add rustfmt --toolchain "$RUST_TOOLCHAIN" 2>/dev/null || true
 
 # Export the selected rustup so callers can use it
 export RUSTUP_BIN

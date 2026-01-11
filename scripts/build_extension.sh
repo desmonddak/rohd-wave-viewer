@@ -1,12 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Build script for ROHD Wave Viewer VS Code extension
-# This script builds the Flutter web app and installs it as a VS Code extension.
-# 
-# NOTE: This script assumes Rust bindings and WASM have already been generated.
-# Run full_build.sh for a complete build, or run generate_frb.sh and build_rust_wasm.sh
-# separately before running this script.
+# Builds the Flutter web app and installs it as a VS Code extension.
+# Auto-builds Rust WASM and Dart interface only if missing.
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -15,33 +12,51 @@ cd "$ROOT_DIR"
 echo "=== ROHD Wave Viewer Extension Build Script ==="
 
 # Check for required tools
-# If node/npm aren't on PATH, attempt to source a per-user nvm install.
+if ! command -v flutter >/dev/null 2>&1; then
+  echo "ERROR: flutter not found on PATH"
+  exit 1
+fi
+
 if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
   if [ -s "$HOME/.nvm/nvm.sh" ]; then
     echo "Sourcing nvm from $HOME/.nvm/nvm.sh to expose node/npm"
     # shellcheck source=/dev/null
     . "$HOME/.nvm/nvm.sh"
-    # try to use default alias if present
     if command -v nvm >/dev/null 2>&1; then
       nvm use default >/dev/null 2>&1 || true
     fi
   fi
 fi
 
-command -v flutter >/dev/null 2>&1 || { echo "Error: flutter not found"; exit 1; }
-command -v node >/dev/null 2>&1 || { echo "Error: node not found"; exit 1; }
-command -v npm >/dev/null 2>&1 || { echo "Error: npm not found"; exit 1; }
+if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+  echo "ERROR: node/npm not found. Install Node.js or nvm."
+  exit 1
+fi
 
 echo "Detected tool versions:"
 flutter --version | head -1
 node --version
 npm --version
 
-# Verify WASM package exists (should have been built by build_rust_wasm.sh)
-if [ ! -d "web/pkg" ]; then
-  echo "Error: web/pkg not found. Run full_build.sh or build_rust_wasm.sh first."
-  exit 1
+# Verify Rust bindings are generated (needed for WASM build)
+if [ ! -f "packages/dart_wellen/lib/src/rust/frb_generated.dart" ]; then
+  echo "Dart interface not found. Generating FRB bindings..."
+  "$ROOT_DIR/scripts/build_dart_wellen_bridge.sh" || {
+    echo "ERROR: Failed to generate Dart interface"
+    exit 1
+  }
 fi
+
+# Build WASM package if missing
+if [ ! -d "web/pkg" ]; then
+  echo "WASM package not found. Building WASM..."
+  "$ROOT_DIR/rust/wellen_bridge/build_wasm.sh" || {
+    echo "ERROR: Failed to build WASM"
+    exit 1
+  }
+fi
+
+echo "✓ Rust WASM and Dart interface verified"
 
 # Step 1: Build Flutter web using web-specific entry point
 echo ""
