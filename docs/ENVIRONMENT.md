@@ -57,36 +57,17 @@ This file captures observed tools used for building the project (web and native)
   - Observed: `8.5.1`
   - Likely installed together with `node` (apt, Node installer, or NodeSource). Verify with `npm --version`.
 
-- yarn
-  - Observed: not found on PATH (Command not found).
-  - If needed, typical install is `npm install -g yarn` or package manager (apt/yarnpkg repo).
-  - Verify: `which yarn`
-
-- pnpm
-  - Observed: not found on PATH.
-  - Typical install: `npm install -g pnpm` or `corepack enable` for Node 16+.
-  - Verify: `which pnpm`
-
 - wasm-pack
   - Path: `/home/ganewto/.cargo/bin/wasm-pack`
   - Observed: `wasm-pack 0.13.1`
   - Likely installed via `cargo install wasm-pack` or from prebuilt installer; commonly installed with `cargo install wasm-pack`.
   - Verify: `wasm-pack --version`
 
-- wasm-bindgen / wasm-bindgen-cli
-  - Observed: not found on PATH.
-  - Often installed via `cargo install -f wasm-bindgen-cli` or provided by `wasm-pack` invocation. If build scripts call `wasm-bindgen` directly, install with `cargo install wasm-bindgen-cli`.
-  - Verify: `which wasm-bindgen` and `wasm-bindgen --version`
-
 - wasm-opt (Binaryen)
-  - Observed: not found on PATH.
-  - Commonly installed via OS package manager (`apt install binaryen`) or downloaded from Binaryen releases.
-  - Verify: `which wasm-opt`
-
- - wasm-opt (Binaryen)
-   - Observed: /usr/bin/wasm-opt (found in some environments)
-   - Used by `wasm-pack` for WASM optimizations during packaging. If present, build scripts will call `wasm-opt` to optimize generated wasm binaries.
-   - Verify: `which wasm-opt` or `wasm-opt --version`
+  - Path: `/usr/bin/wasm-opt` or installed via system package manager
+  - Used by `wasm-pack` for WASM optimizations during packaging.
+  - Installed via `tool/gh_actions/install_wasm_tools.sh` (which also installs wasm-bindgen-cli)
+  - Verify: `which wasm-opt` or `wasm-opt --version`
 
 - git
   - Path: `/usr/bin/git`
@@ -142,14 +123,11 @@ rustc --version
 
 # wasm tools
 wasm-pack --version
-which wasm-bindgen || echo "wasm-bindgen not found"
 which wasm-opt || echo "wasm-opt not found"
 
 # Node / npm
 node --version
 npm --version
-which yarn || echo "yarn not installed"
-which pnpm || echo "pnpm not installed"
 
 # Flutter / Dart
 /opt/flutter/bin/flutter --version
@@ -165,15 +143,21 @@ ls -l web/pkg
 
 ## Suggested installs (if you need to make a reproducible environment)
 
-- Install rustup (if not present):
-  - `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-- Install required cargo tools:
-  - `cargo install flutter_rust_bridge_codegen --version 2.7.0`
-  - `cargo install wasm-pack`
-  - `cargo install -f wasm-bindgen-cli` (if scripts call `wasm-bindgen` directly)
-- Install Binaryen (provides `wasm-opt`):
-  - Ubuntu/Debian: `sudo apt install binaryen`
- 
+For a fresh setup, run the installer scripts in order:
+
+```bash
+tool/gh_actions/install_rust_1_92.sh         # Installs Rust 1.92.0 toolchain
+tool/gh_actions/install_wasm_tools.sh        # Installs wasm-pack, wasm-bindgen-cli, and binaryen
+tool/gh_actions/install_build_tools.sh       # Installs C/C++ compiler, CMake, LLVM, GTK, etc.
+```
+
+These scripts automatically:
+
+- Set up Rust 1.92 in per-user locations (`~/.cargo`, `~/.rustup`)
+- Install wasm-pack, wasm-bindgen-cli, and binaryen (wasm-opt) with proxy support
+- Detect your OS and use the appropriate package manager
+- Skip installation if tools are already present
+
 ### LLVM / Clang / Binaryen (needed for ffigen / wasm-opt)
 
 ffigen (used by `flutter_rust_bridge_codegen`) requires LLVM's libclang to parse C headers, and `wasm-opt` (from Binaryen) is used by `wasm-pack` for wasm optimizations. If these are missing you'll see errors like "ffigen could not find LLVM" or failed Binaryen downloads.
@@ -200,6 +184,7 @@ export LIBCLANG_PATH="$(brew --prefix llvm)/lib"
 ```
 
 If LLVM or Binaryen are installed in a custom location, set `LIBCLANG_PATH` to the directory containing `libclang.so` (or `libclang.dylib` on macOS) before running the build script.
+
 - Node (recommended modern LTS):
   - Use `nvm` to install Node 18+: `curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.4/install.sh | bash` then `nvm install --lts`.
   - Alternatively on Debian/Ubuntu you can install via apt:
@@ -210,6 +195,7 @@ sudo apt install -y nodejs npm
 ```
 
 Note: system package managers may ship older Node versions. `nvm` is recommended for installing a modern LTS (Node 18+).
+
 - Flutter SDK:
   - Download stable from flutter.dev and extract to `/opt/flutter` or a user-writable location, then add to PATH.
 
@@ -281,8 +267,3 @@ Troubleshooting checklist
 If you want an automated helper, I can add a `scripts/setup_local_env.sh` that verifies `CARGO_HOME`/`PATH`, attempts non-destructive installs (prompting before `cargo install`), and prints clear remediation steps when something is missing.
 
 ---
-
-If you want, I can:
-
-- Produce a `setup.sh` that checks/installs the missing CLI pieces non-destructively (only prompts or prints commands to run), or
-- Extract exact build commands from the repository build scripts (e.g., `build_extension.sh` / `build.sh`) so you can reproduce the web and native builds step-by-step.

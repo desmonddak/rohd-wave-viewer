@@ -7,7 +7,7 @@ This repository organizes build scripts into three areas for clarity and separat
 Single comprehensive installer script for all toolchain dependencies:
 
 - **`install_rust_1_92.sh`**: Install Rust 1.92.0 toolchain (per-user, ~/.cargo, ~/.rustup)
-- **`install_wasm_tools.sh`**: Install wasm-pack and wasm-bindgen-cli for WASM builds
+- **`install_wasm_tools.sh`**: Install wasm-pack, wasm-bindgen-cli, and binaryen (wasm-opt) for WASM builds
 - **`install_build_tools.sh`**: Unified installer for:
   - C/C++ compiler (gcc/clang)
   - CMake & Ninja build tools
@@ -15,6 +15,12 @@ Single comprehensive installer script for all toolchain dependencies:
   - LLVM/libclang (for flutter_rust_bridge codegen)
   - GTK3 & graphics libraries (for Flutter Linux)
   - Works across Linux (apt/dnf/yum/pacman/zypper) and macOS (brew)
+- **`install_dependencies.sh`**: Install Flutter/Dart dependencies (flutter pub get)
+- **`build_wellen_bridge_ci.sh`**: CI-specific script for building the Rust bridge
+- **`analyze_source.sh`**: Run static analysis on Dart code
+- **`verify_formatting.sh`**: Check Dart code formatting
+- **`generate_documentation.sh`**: Generate project documentation
+- **`run_tests.sh`**: Run test suite
 
 Run these once per environment/machine. Each installer:
 
@@ -67,7 +73,7 @@ High-level app build and support scripts:
 ### Cleanup scripts
 
 - **`clean_linux.sh`**: Remove Linux build artifacts
-- **`clean_extension.sh`**: Remove extension build artifacts
+- **`clean_extension.sh`**: Remove extension build artifacts (includes Rust bridge cleanup)
 
 ### Support scripts
 
@@ -75,10 +81,17 @@ High-level app build and support scripts:
   - Sets CARGO_HOME, RUSTUP_HOME (per-user)
   - Ensures pinned Rust 1.92 is available
   - Exports RUSTUP_BIN for use in other scripts
+  - Exports proxy environment variables for tool downloads
 
-- **`convert_test_fixtures.sh`**: Convert waveform test fixtures
-  - VCD → FST (via vcd2fst)
-  - Documents GHW generation via GHDL
+- **`fix_bootstrap.py`**: Patch flutter_bootstrap.js for VS Code webview compatibility
+
+- **`run_dart_tests.sh`**: Run Dart tests for dart_wellen package
+
+- **`run_wasm_test_nvm.sh`**: Run WASM tests using Node.js via nvm
+
+- **`build_vsix.tcsh`**: Build VS Code extension package (.vsix file)
+
+- **`configure_vscode_association.sh`**: Configure VS Code file associations
 
 ## Test Fixtures (`test/fixtures/`)
 
@@ -101,13 +114,15 @@ Tests validate that all three formats correctly parse:
 ```bash
 # One-time setup
 tool/gh_actions/install_rust_1_92.sh
-tool/gh_actions/install_wasm_tools.sh
+tool/gh_actions/install_wasm_tools.sh  # Installs wasm-pack, wasm-bindgen-cli, and binaryen
 tool/gh_actions/install_build_tools.sh
 
 # Build
 rust/wellen_bridge/build.sh
 scripts/build_extension.sh
 ```
+
+**Note**: WASM builds require `binaryen` (wasm-opt) for optimization. The `install_wasm_tools.sh` script will install it via your system package manager. If you're behind a corporate proxy, ensure proxy environment variables (`http_proxy`, `https_proxy`, etc.) are set before running the build scripts.
 
 ### Linux Desktop
 

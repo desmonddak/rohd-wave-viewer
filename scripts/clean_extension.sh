@@ -13,6 +13,10 @@ REPO_ROOT="$(pwd)"
 
 echo "REPO_ROOT: $REPO_ROOT"
 
+# Clean Rust bridge artifacts (WASM and generated FRB files)
+echo "Cleaning Rust bridge artifacts..."
+"$REPO_ROOT/rust/wellen_bridge/clean.sh"
+
 # Remove Flutter web build artifacts
 if [ -d "$REPO_ROOT/build/web" ]; then
   echo "Removing build/web/..."

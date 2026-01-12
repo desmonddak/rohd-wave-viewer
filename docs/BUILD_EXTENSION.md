@@ -90,8 +90,8 @@ This will:
 Note about extension layout:
 
 - The repository separates the TypeScript **source** from the **packaging/template assets**:
-   - `vscode-extension/` is the TypeScript source and contains the compiled `out/` JS when you run `npm run compile`. See [vscode-extension/README.md](vscode-extension/README.md).
-   - `vscode-ext-package/extension/` contains packaging assets (manifest, media) that are copied into the final extension. See [vscode-ext-package/extension/README.md](vscode-ext-package/extension/README.md).
+  - `vscode-extension/` is the TypeScript source and contains the compiled `out/` JS when you run `npm run compile`. See [vscode-extension/README.md](vscode-extension/README.md).
+  - `vscode-ext-package/extension/` contains packaging assets (manifest, media) that are copied into the final extension. See [vscode-ext-package/extension/README.md](vscode-ext-package/extension/README.md).
 
 The build scripts compile the TypeScript in `vscode-extension` and copy assets from `vscode-ext-package/extension` plus the compiled JS into the target extension directory.
 
@@ -157,7 +157,6 @@ The scripts attempt to auto-install missing tools, but they also check common lo
 This compiles the Rust `wellen_bridge` crate to WebAssembly and generates:
 
 - `web/pkg/wellen_bridge.js` - JavaScript bindings (no ES module exports with `--target no-modules`)
-- `web/pkg/wellen_bridge_bg.wasm` - WebAssembly module
 - `web/pkg/wellen_bridge_bg.wasm` - WebAssembly module
 
 ### Step 2: Build Flutter Web App

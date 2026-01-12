@@ -3,11 +3,11 @@
 
 rust_input: crate::api
 dart_output: lib/src/rust/
-rust_root: rust/wellen_bridge/
+rust_root: ../../rust/wellen_bridge/
 dart_root: lib/
 
 # Additional outputs
-rust_output: rust/wellen_bridge/src/frb_generated.rs
+rust_output: ../../rust/wellen_bridge/src/frb_generated.rs
 
 # Generate for all platforms
 full_dep: true

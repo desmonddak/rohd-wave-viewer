@@ -71,6 +71,9 @@ fi
 
 echo "[build-dart-wellen] Using temporary config $TMP_CFG"
 
+# Ensure dart output directory exists
+mkdir -p "$ROOT_DIR/packages/dart_wellen/lib/src/rust"
+
 # Run codegen
 echo "[build-dart-wellen] Invoking: flutter_rust_bridge_codegen generate (from packages/dart_wellen)"
 pushd "$ROOT_DIR/packages/dart_wellen" >/dev/null

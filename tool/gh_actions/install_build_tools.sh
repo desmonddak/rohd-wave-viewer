@@ -9,7 +9,7 @@ log() { echo "[install-build-tools] $*"; }
 # Determine if we need sudo (only when not already root)
 SUDO_CMD=""
 if [ "$EUID" -ne 0 ]; then
-  SUDO_CMD="sudo"
+  SUDO_CMD="sudo -E"
 fi
 
 has_cmd() { command -v "$1" >/dev/null 2>&1; }
@@ -31,12 +31,12 @@ case "$OS" in
   Linux*)
     if command -v apt-get >/dev/null 2>&1; then
       log "Installing via apt-get..."
-      $SUDO_CMD apt-get -o Acquire::http::Proxy=false update -y
+      $SUDO_CMD apt-get update -y
       # Core build tools + GTK/graphics for Flutter Linux + LLVM for codegen
-      $SUDO_CMD apt-get -o Acquire::http::Proxy=false install -y \
+      $SUDO_CMD apt-get install -y \
         build-essential cmake ninja-build pkg-config \
         clang llvm libclang-dev \
-        libgtk-3-dev libglib2.0-dev libgobject-introspection-1.0-dev \
+        libgtk-3-dev libglib2.0-dev libgirepository1.0-dev \
         libpango1.0-dev libatk1.0-dev libcairo2-dev libgdk-pixbuf2.0-dev \
         libx11-dev libxext-dev libxkbcommon-dev libxfixes-dev \
         libwayland-dev
