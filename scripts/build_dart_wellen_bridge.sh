@@ -30,7 +30,13 @@ if [ -n "$_libclang" ]; then
     echo "[build-dart-wellen] Found libclang: $_libclang"
     echo "[build-dart-wellen] Setting LIBCLANG_PATH=$LIBCLANG_PATH"
 else
-    echo "[build-dart-wellen] WARNING: libclang not found. ffigen may fail."
+    echo "" >&2
+    echo "ERROR: libclang not found. This is required for ffigen to generate Dart bindings." >&2
+    echo "" >&2
+    echo "Please install the required build tools by running:" >&2
+    echo "  bash tool/gh_actions/install_build_tools.sh" >&2
+    echo "" >&2
+    exit 1
 fi
 
 # Ensure flutter_rust_bridge_codegen is installed
