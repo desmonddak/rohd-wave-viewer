@@ -52,28 +52,10 @@ High-level app build and support scripts:
 
 ### Dart interface generation
 
-- **`build_dart_wellen_bridge.sh`**: Generate Flutter/Rust bridge Dart bindings
+- **`build_dart_wellen_bridge.sh`**: Generate Flutter/Rust bridge Dart bindings (used by Makefile)
   - Runs flutter_rust_bridge_codegen with libclang detection
   - Handles absolute path rewriting for Rust config
   - Ready for both Linux and web builds
-
-### Flutter app building
-
-- **`build_linux.sh`**: Build Linux desktop app
-  - Auto-builds native library if missing
-  - Creates Flutter build directory structure
-  - Outputs to `build/linux/x64/release/bundle/`
-
-- **`build_extension.sh`**: Build VS Code extension
-  - Auto-builds WASM if web/pkg missing
-  - Auto-generates Dart interface if needed
-  - Builds Flutter web app
-  - Compiles TypeScript extension
-
-### Cleanup scripts
-
-- **`clean_linux.sh`**: Remove Linux build artifacts
-- **`clean_extension.sh`**: Remove extension build artifacts (includes Rust bridge cleanup)
 
 ### Support scripts
 
@@ -83,13 +65,11 @@ High-level app build and support scripts:
   - Exports RUSTUP_BIN for use in other scripts
   - Exports proxy environment variables for tool downloads
 
-- **`fix_bootstrap.py`**: Patch flutter_bootstrap.js for VS Code webview compatibility
-
-- **`run_dart_tests.sh`**: Run Dart tests for dart_wellen package
+- **`fix_bootstrap.py`**: Patch flutter_bootstrap.js for VS Code webview compatibility (used by Makefile)
 
 - **`run_wasm_test_nvm.sh`**: Run WASM tests using Node.js via nvm
 
-- **`build_vsix.tcsh`**: Build VS Code extension package (.vsix file)
+- **`build_vsix.tcsh`**: Build VS Code extension package (.vsix file) (used by Makefile)
 
 - **`configure_vscode_association.sh`**: Configure VS Code file associations
 

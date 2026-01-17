@@ -78,20 +78,22 @@ void setUrlStrategySafe(dynamic strategy) {}
 
 final _global = <String, dynamic>{};
 
+dynamic getGlobalThis() => _global;
+
 dynamic get globalThis => _global;
 
-dynamic getProperty(dynamic target, String prop) {
+dynamic getProperty(dynamic target, dynamic prop) {
   try {
-    if (target is Map) return target[prop];
+    if (target is Map) return target[prop.toString()];
     return null;
   } catch (_) {
     return null;
   }
 }
 
-void setProperty(dynamic target, String prop, dynamic value) {
+void setProperty(dynamic target, dynamic prop, dynamic value) {
   try {
-    if (target is Map) target[prop] = value;
+    if (target is Map) target[prop.toString()] = value;
   } catch (_) {}
 }
 
@@ -133,3 +135,6 @@ void signalEmbedReady([Map<String, dynamic>? info]) =>
     signalEmbedReadyImpl(info);
 void postMessageToHost(Object message) => postMessageToHostImpl(message);
 bool isShiftDownFromJs() => isShiftDownFromJsImpl();
+
+// Stub for getGlobalPropertyExported to match platform_web.dart
+dynamic getGlobalPropertyExported(String name) => _global[name];

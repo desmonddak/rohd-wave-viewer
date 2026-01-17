@@ -11,7 +11,7 @@ Packaging workflow summary:
 
    npm --prefix vscode-extension run compile
 
-2. The packaging step copies this folder's contents (assets and manifest) plus the compiled JS from `vscode-extension/out/` into the extension target directory. See `scripts/build_extension.sh` and `scripts/build_vsix.tcsh`.
+2. The packaging step copies this folder's contents (assets and manifest) plus the compiled JS from `vscode-extension/out/` into the extension target directory. See `make extension` and `make vsix` targets in the Makefile.
 
 Notes:
 

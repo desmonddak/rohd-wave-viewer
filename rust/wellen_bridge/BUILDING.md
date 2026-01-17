@@ -104,8 +104,8 @@ rust/wellen_bridge/build_native.sh
 
 ```bash
 # Builds everything Flutter needs
-scripts/build_linux.sh        # includes native lib + Dart bindings
-scripts/build_extension.sh    # includes WASM + Dart bindings
+make linux                    # includes native lib + Dart bindings
+make extension                # includes WASM + Dart bindings
 ```
 
 ## Cleaning

@@ -59,6 +59,12 @@ class MockModuleStructureApi extends ModuleStructureApi {
             "name": "Signal3",
             "type": "hex",
             "data": []
+          },
+          {
+            "id": "Counter.Signal4",
+            "name": "Signal4",
+            "type": "bin",
+            "data": []
           }
         ]
       }
@@ -105,6 +111,15 @@ class MockModuleStructureApi extends ModuleStructureApi {
       [9, 'XXX'],
       [14, '1'],
       [17, 'ZZ'],
+    ],
+    'Counter.Signal4': [
+      [1, 'X'],
+      [4, '1'],
+      [7, 'Z'],
+      [10, '0'],
+      [13, 'X'],
+      [16, '1'],
+      [19, 'Z'],
     ],
   };
 

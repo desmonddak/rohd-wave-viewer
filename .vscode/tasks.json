@@ -1,0 +1,61 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Extension",
+            "type": "shell",
+            "command": "cd vscode-extension && npm run compile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": ["$tsc"],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Flutter Web (port 9299)",
+            "type": "shell",
+            "command": "flutter run -d web-server --web-port=9299 --web-hostname=localhost lib/main_web.dart",
+            "isBackground": true,
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^Launching",
+                    "endsPattern": "is being served at"
+                }
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            }
+        },
+        {
+            "label": "Flutter Linux",
+            "type": "shell",
+            "command": "flutter run -d linux",
+            "isBackground": true,
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^Launching",
+                    "endsPattern": "^Application finished"
+                }
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            }
+        }
+    ]
+}

@@ -11,7 +11,7 @@ Development workflow summary:
 
    npm --prefix vscode-extension run compile
 
-2. The build/packaging step copies packaging/template assets from `vscode-ext-package/extension/` and the compiled `vscode-extension/out/` to the target extension directory (see `scripts/build_extension.sh`).
+2. The build/packaging step copies packaging/template assets from `vscode-ext-package/extension/` and the compiled `vscode-extension/out/` to the target extension directory (see `make extension` target in the Makefile).
 
 Notes:
 

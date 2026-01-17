@@ -65,6 +65,122 @@ flutter build linux   # or macos/windows depending on your platform
 - **Pan with keyboard:** Use the arrow keys to scroll vertically/horizontally. `Up`/`Down` scroll by one signal-row (see `signalRowHeight`), `Left`/`Right` scroll horizontally.
 - **Fit View:** Press `F` to reset zoom to 1.0 and jump to the start (time 0).
 
+## Development & Testing
+
+The ROHD Wave Viewer can be run and tested in three different configurations:
+
+### 1. VS Code Extension Mode
+
+Run as a VS Code extension for viewing VCD/FST files:
+
+**Using VS Code Debug Panel (F5):**
+
+- `Extension (workspace)` - Test extension from workspace
+- `Extension (workspace) + Debug` - With Node.js debugger (port 9329)
+
+**Installing the Extension:**
+
+For local testing, remote container testing, or distributing as a VSIX package:
+
+```bash
+# Local development (fast iteration with symlinks)
+make install-local
+
+# Remote container testing
+make install-remote
+
+# Create VSIX package for distribution
+make vsix
+
+# Install from VSIX
+make install-vsix
+```
+
+See **[docs/INSTALL_EXTENSION.md](docs/INSTALL_EXTENSION.md)** for complete installation instructions and troubleshooting.
+
+**Using VS Code Tasks (Ctrl+Shift+B):**
+
+- `Build Extension` - Compile TypeScript extension code
+
+**Key Development Steps:**
+
+1. Make changes to extension code in `vscode-extension/`
+2. Press F5 to launch Extension Development Host
+3. Open a `.vcd` or `.fst` file to trigger the wave viewer
+4. Check Debug Console for extension logs
+
+**Using Terminal:**
+
+```bash
+cd vscode-extension
+npm run compile
+# Then press F5 in VS Code to test
+```
+
+### 2. Web Mode
+
+Run the Flutter wave viewer as a standalone web application:
+
+**Using VS Code Debug Panel (F5):**
+
+- `Web (Simple Browser)` - Run on port 9299 in VS Code
+- `Web (Chrome)` - Open in Chrome browser
+
+**Using VS Code Tasks:**
+
+- `Flutter Web (port 9299)` - Run web server with main_web.dart
+
+**Using Terminal:**
+
+```bash
+flutter run -d web-server --web-port=9299 --web-hostname=localhost lib/main_web.dart
+```
+
+Access at: **<http://localhost:9299>**
+
+### 3. Linux Native Mode
+
+Run the Flutter wave viewer as a native Linux desktop application:
+
+**Using VS Code Debug Panel (F5):**
+
+- `Linux Native` - Standard debug mode using main.dart
+- `Linux Native (profile)` - Profile mode
+
+**Using VS Code Tasks:**
+
+- `Flutter Linux` - Run native application
+
+**Using Terminal:**
+
+```bash
+# With VCD file argument
+flutter run -d linux -- /path/to/file.vcd
+
+# Using environment variable
+export ROHD_WAVE_VCD=/path/to/file.vcd
+flutter run -d linux
+
+# Build release binary
+flutter build linux
+./build/linux/x64/release/bundle/rohd_wave_viewer /path/to/file.vcd
+```
+
+### Testing
+
+Run unit and widget tests:
+
+```bash
+# Run all tests
+flutter test
+
+# Run specific test file
+flutter test test/path/to/test_file.dart
+
+# Run tests with coverage
+flutter test --coverage
+```
+
 ## Get involved
 
 - [Join the Discord chat](https://discord.gg/jubxF84yGw)

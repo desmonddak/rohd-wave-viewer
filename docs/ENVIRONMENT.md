@@ -222,11 +222,11 @@ export PATH="$CARGO_HOME/bin:$PATH"
 
 ## Updated guidance (2026-01-07)
 
-The repository's build scripts (`scripts/setup_rust_env.sh`, `scripts/build_linux.sh`, `scripts/build_extension.sh`) now expect and prefer per-user Rust tools installed under `CARGO_HOME` (by default `$HOME/.cargo`). They will:
+The repository's build scripts (`scripts/setup_rust_env.sh` and Makefile targets) now expect and prefer per-user Rust tools installed under `CARGO_HOME` (by default `$HOME/.cargo`). They will:
 
 - Prepend `$CARGO_HOME/bin` to `PATH` during scripted runs so user-installed tools like `wasm-pack` are discovered.
 - Attempt to auto-install missing tools (e.g., `cargo install wasm-pack`), but installs can fail if `CARGO_HOME` points to a directory you cannot write (common when earlier installs were done as root).
-- `scripts/build_extension.sh` performs extra detection: if a tool is not on `PATH` it will also check `$CARGO_HOME/bin` and `$HOME/.cargo/bin` as fallbacks and report the fallback path when found.
+- The Makefile targets expect tools to be on `PATH` or in standard Rust locations (`$CARGO_HOME/bin`).
 
 Recommendations to avoid common failures:
 

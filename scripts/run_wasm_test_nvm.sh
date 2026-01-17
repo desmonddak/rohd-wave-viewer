@@ -26,7 +26,7 @@ if [ -d "$REPO_ROOT/build/web/pkg" ]; then
   mkdir -p "$REPO_ROOT/web/pkg"
   cp -r "$REPO_ROOT/build/web/pkg/"* "$REPO_ROOT/web/pkg/" || true
 else
-  echo "Warning: build/web/pkg not found — ensure you ran scripts/build_extension.sh"
+  echo "Warning: build/web/pkg not found — ensure you ran 'make web' or 'make extension'"
 fi
 
 LOGDIR="$REPO_ROOT/build_logs/wasm_test_runs"

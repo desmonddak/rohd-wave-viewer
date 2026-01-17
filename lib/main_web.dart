@@ -15,10 +15,10 @@ import 'src/platform/platform.dart' as plat;
 import 'package:devtools_app_shared/ui.dart';
 import 'package:devtools_app_shared/utils.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:rohd_wave_viewer/app.dart';
 import 'package:module_structure_repository/module_structure_repository.dart';
 import 'package:dart_wellen/dart_wellen.dart';
+import 'mock_module_structure_api.dart';
 
 // platform facade imported once above
 
@@ -80,7 +80,7 @@ class WebWellenApi {
 
 void main() async {
   // Disable URL strategies to avoid replaceState errors in VS Code webviews
-  setUrlStrategy(null);
+  plat.setUrlStrategySafe(null);
 
   WidgetsFlutterBinding.ensureInitialized();
   setGlobal(IdeTheme, getIdeTheme());
@@ -253,7 +253,7 @@ void main() async {
   // in the readiness signal; otherwise omit the field.
   // Include the `wasm` boolean if present on the global object.
   try {
-    final wasmFlag = plat.getProperty(plat.globalThis, 'wasmInitOk');
+    final wasmFlag = plat.getGlobalPropertyExported('wasmInitOk');
     if (wasmFlag != null) {
       plat.signalEmbedReady({
         'platform': 'web',
@@ -267,11 +267,14 @@ void main() async {
     plat.signalEmbedReady({'platform': 'web', 'version': '1.0.0'});
   }
 
+  // Use MockModuleStructureApi initially to show the Counter example,
+  // similar to the devtools version. When VCD content arrives via postMessage,
+  // the webApi.loaded future completes and we could switch to the Wellen API.
+  // For now, we start with the mock data so users see something immediately.
   runApp(
     App(
       moduleStructureRepository: ModuleStructureRepository(
-        moduleStructureApi: webApi.api,
-        apiReady: webApi.loaded,
+        moduleStructureApi: MockModuleStructureApi(),
       ),
     ),
   );

@@ -146,7 +146,7 @@ sudo chown -R $(id -u):$(id -g) $HOME/.cargo $HOME/.rustup
 
 ### Fallback detection
 
-The scripts attempt to auto-install missing tools, but they also check common local install locations and will report the fallback path if a tool is found there. If a tool is present under `~/.cargo/bin` but not on `PATH`, export `PATH` in the same shell before running `./scripts/build_extension.sh`.
+If a tool is present under `~/.cargo/bin` but not on `PATH`, export `PATH` in the same shell before running `make extension`.
 
 **Important WASM Flags**:
 
@@ -301,7 +301,7 @@ This prevents the codec from attempting to create async worker threads.
   setenv PATH "$HOME/.cargo/bin:$PATH"
   ```
 
-- **Temporary**: Run build with explicit PATH: `export PATH="${HOME}/.cargo/bin:${PATH}" && ./scripts/build_extension.sh`
+- **Temporary**: Run build with explicit PATH: `export PATH="${HOME}/.cargo/bin:${PATH}" && make extension`
 
 ### "flutter_rust_bridge_codegen not found"
 

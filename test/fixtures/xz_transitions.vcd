@@ -7,59 +7,100 @@ $end
 $timescale 1ns $end
 $scope module test $end
 $var wire 1 a clk $end
-$var wire 8 b data8 [7:0] $end
+$var wire 1 b bin_xz $end
+$var wire 5 d bin5_xz [4:0] $end
+$var wire 8 c data8 [7:0] $end
 $upscope $end
 $enddefinitions $end
 
 #0
-xa
-bxxxxxxxx b
+0a
+xb
+bxxxxx d
+bxxxxxxxx c
 
+#5
+1a
 #10
+0a
+#15
 1a
 #20
-xa
+0a
+#25
+1a
 #30
-za
+0a
+#35
+1a
 #40
 0a
+#45
+1a
 #50
-za
+0a
+b00001 d
+#55
+1a
 #60
-xa
-
+0a
+#65
+1a
 #70
-b00001111 b
-#80
- bzzzzzzzz b
-#90
-b11110000 b
-#100
-bxxxxxxxx b
-#110
-b00000000 b
-#120
-b11111111 b
-#130
- bzzzzzzzz b
-#140
-b10101010 b
-#150
- bzzzzzzzz b
-#160
-b00000001 b
-#170
-bxxxxxxxx b
-#180
-b00110011 b
-#190
-bxxxxxxxx b
-#200
-b01010101 b
+0a
+#75
+1a
 
-#210
-bxxxxxxxx b
-#220
-bzzzzzzzz b
-#230
-bxxxxxxxx b
+#80
+1b
+b00001111 c
+
+#90
+zb
+bzzzzz d
+bzzzzzzzz c
+
+#100
+1b
+b00001 d
+b11110000 c
+
+#110
+xb
+bxxxxxxxx c
+
+#120
+0b
+bxxxxx d
+b00000000 c
+
+#130
+zb
+bzzzzzzzz c
+
+#140
+1b
+b00001 d
+b10101010 c
+
+#150
+xb
+bxxxxxxxx c
+
+#160
+0b
+bzzzzz d
+b01010101 c
+
+#170
+zb
+bzzzzzzzz c
+
+#180
+1b
+b00001 d
+b00110011 c
+
+#190
+xb
+bxxxxx d

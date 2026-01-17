@@ -50,7 +50,7 @@ On a local VS Code installation (not Remote):
 
 ## The Patch
 
-The build script (`scripts/build_extension.sh`) applies a two-part patch:
+The build process (`make extension` target) applies a two-part patch via `scripts/fix_bootstrap.py`:
 
 ### Part 1: WASM Binary Patch
 
